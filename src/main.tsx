@@ -12,7 +12,7 @@ const LazyPdfViewer = lazy(() => import('./PdfViewer'));
 const STORAGE_KEY = 'tailor-tex-workspace-v1';
 type Skill = { name: string; aliases: string[]; group: string };
 type SkillGroup = { id: string; title: string; icon: string; skills: [string, string[]][] };
-type SavedState = { code: string; required: string[]; overrides: Record<string, boolean>; fileName?: string; engine?: CompileEngine };
+type SavedState = { code: string; required: string[]; overrides: Record<string, boolean>; customSkills?: Skill[]; fileName?: string; engine?: CompileEngine };
 type Diagnostic = { line: number; message: string; severity: 'error' | 'warning' | 'info' };
 type CompileStatus = 'idle' | 'loading' | 'compiling' | 'success' | 'error';
 type CompileEngine = 'pdflatex' | 'xelatex' | 'auto';
@@ -42,7 +42,14 @@ const GROUPS: SkillGroup[] = [
   ] },
 ];
 const ALL_SKILLS = GROUPS.flatMap((group) => group.skills.map(([name, aliases]) => ({ name, aliases, group: group.id })));
-const SKILL_BY_NAME = new Map<string, Skill>(ALL_SKILLS.map((skill) => [skill.name, skill]));
+const EXTRA_TECHNOLOGIES: [string, string, string[]][] = [
+  ['Rust', 'backend', []], ['Ruby', 'backend', []], ['PHP', 'backend', []], ['Kotlin', 'backend', []], ['Swift', 'backend', []], ['Scala', 'backend', []], ['Dart', 'backend', []], ['C++', 'backend', []], ['.NET', 'backend', ['dotnet']],
+  ['Svelte', 'frontend', []], ['Nuxt', 'frontend', ['Nuxt.js']], ['Remix', 'frontend', ['Remix.run']], ['Astro', 'frontend', []], ['Vite', 'frontend', []], ['Webpack', 'frontend', []], ['NestJS', 'backend', ['Nest.js']], ['Flask', 'backend', []], ['Laravel', 'backend', []], ['Ruby on Rails', 'backend', ['Rails']], ['ASP.NET', 'backend', []], ['Hibernate', 'backend', []],
+  ['Kafka', 'data', ['Apache Kafka']], ['RabbitMQ', 'backend', []], ['DynamoDB', 'data', ['Amazon DynamoDB']], ['Cassandra', 'data', ['Apache Cassandra']], ['Snowflake', 'data', []], ['BigQuery', 'data', ['Google BigQuery']], ['Oracle', 'data', ['Oracle Database']], ['MariaDB', 'data', []], ['Firebase', 'data', []], ['Supabase', 'data', []], ['Apache Spark', 'data', ['Spark']], ['Hadoop', 'data', ['Apache Hadoop']], ['Airflow', 'data', ['Apache Airflow']], ['dbt', 'data', []], ['Databricks', 'data', []],
+  ['Jenkins', 'cloud', []], ['CircleCI', 'cloud', []], ['Prometheus', 'cloud', []], ['Grafana', 'cloud', []], ['Helm', 'cloud', []], ['Ansible', 'cloud', []], ['Pulumi', 'cloud', []], ['Bash', 'cloud', ['Shell scripting']], ['PowerShell', 'cloud', []], ['Nginx', 'cloud', ['NGINX']],
+  ['gRPC', 'backend', []], ['OAuth', 'backend', ['OAuth 2.0']], ['JWT', 'backend', ['JSON Web Token']], ['WebSockets', 'backend', ['WebSocket']], ['Vitest', 'testing', []], ['Mocha', 'testing', []], ['RSpec', 'testing', []], ['Postman', 'testing', []], ['OpenAPI', 'backend', ['Swagger']],
+  ['SwiftUI', 'frontend', []], ['Flutter', 'frontend', []], ['React Native', 'frontend', []], ['Unity', 'backend', []], ['Unreal Engine', 'backend', ['Unreal']],
+];
 const START = '% tailor.tex:skills:start';
 const END = '% tailor.tex:skills:end';
 const latexLanguage = StreamLanguage.define(stex);
@@ -82,7 +89,8 @@ function findSkillInText(text: string, skill: Skill) {
   const normalizedText = normalize(text);
   return [skill.name, ...skill.aliases].some((term) => {
     const normalizedTerm = normalize(term);
-    return normalizedTerm && new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedTerm)}(?=$|[^a-z0-9])`).test(normalizedText);
+    const termText = normalizedTerm === 'js' ? normalizedText.replace(/\b(?:node|react|next|vue|express|nest|nuxt)\.js\b/g, ' ') : normalizedText;
+    return normalizedTerm && new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedTerm)}(?=$|[^a-z0-9])`).test(termText);
   });
 }
 
@@ -90,8 +98,25 @@ function findSkillInPlainText(text: string, skill: Skill) {
   const normalizedText = text.toLowerCase().replace(/\s+/g, ' ');
   return [skill.name, ...skill.aliases].some((term) => {
     const normalizedTerm = term.toLowerCase().trim();
-    return normalizedTerm && new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedTerm)}(?=$|[^a-z0-9])`, 'i').test(normalizedText);
+    const termText = normalizedTerm === 'js' ? normalizedText.replace(/\b(?:node|react|next|vue|express|nest|nuxt)\.js\b/g, ' ') : normalizedText;
+    return normalizedTerm && new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedTerm)}(?=$|[^a-z0-9])`, 'i').test(termText);
   });
+}
+
+function extractUnlistedTechnologies(text: string, catalog: Skill[]): Skill[] {
+  return EXTRA_TECHNOLOGIES
+    .filter(([name, , aliases]) => !catalog.some((skill) => skill.name.toLowerCase() === name.toLowerCase())
+      && findSkillInPlainText(text, { name, aliases, group: 'custom' }))
+    .map(([name, group, aliases]) => ({ name, group, aliases }));
+}
+
+function inferSkillGroup(name: string) {
+  const value = name.toLowerCase();
+  if (/react|vue|angular|svelte|frontend|front.end|css|html|ui|web|tailwind|flutter|swiftui/i.test(value)) return 'frontend';
+  if (/sql|database|data|redis|mongo|postgres|kafka|spark|warehouse|storage/i.test(value)) return 'data';
+  if (/aws|azure|cloud|docker|kubernetes|devops|linux|terraform|jenkins|grafana|ansible/i.test(value)) return 'cloud';
+  if (/test|jest|cypress|playwright|pytest|selenium|postman/i.test(value)) return 'testing';
+  return 'backend';
 }
 
 function getSkillsSectionRange(code: string): { start: number; end: number } | null {
@@ -105,21 +130,21 @@ function getSkillsSectionRange(code: string): { start: number; end: number } | n
   return { start, end };
 }
 
-function scanSkills(code: string): Set<string> {
+function scanSkills(code: string, catalog: Skill[] = ALL_SKILLS): Set<string> {
   const range = getSkillsSectionRange(code);
   const scanText = range ? code.slice(range.start, range.end) : code;
-  return new Set(ALL_SKILLS.filter((skill) => findSkillInText(scanText, skill)).map((skill) => skill.name));
+  return new Set(catalog.filter((skill) => findSkillInText(scanText, skill)).map((skill) => skill.name));
 }
 
-function skillSectionFor(skillName: string) {
+function skillSectionFor(skillName: string, catalog: Skill[] = ALL_SKILLS) {
   if (['Java', 'JavaScript', 'TypeScript', 'Python', 'C#', 'Go'].includes(skillName)) return 'language';
   if (skillName === 'SQL') return 'data';
-  return SKILL_BY_NAME.get(skillName)?.group || 'tools';
+  return catalog.find((skill) => skill.name === skillName)?.group || 'tools';
 }
 
-function headingMatchesSkill(heading: string, skillName: string) {
+function headingMatchesSkill(heading: string, skillName: string, catalog: Skill[] = ALL_SKILLS) {
   const value = normalize(heading);
-  const target = skillSectionFor(skillName);
+  const target = skillSectionFor(skillName, catalog);
   const aliases: Record<string, string[]> = {
     language: ['programming language', 'languages', 'language'],
     frontend: ['frontend', 'front end', 'ui', 'web development'],
@@ -128,6 +153,7 @@ function headingMatchesSkill(heading: string, skillName: string) {
     cloud: ['devops', 'developer tools', 'cloud', 'infrastructure', 'tools'],
     testing: ['testing', 'test', 'qa', 'quality assurance'],
     tools: ['tools', 'technical skills', 'skills'],
+    custom: ['additional skills', 'other skills', 'tools', 'technical skills'],
   };
   const matches = (terms: string[]) => terms.some((term) => value.includes(term));
   if (target === 'data' && matches(aliases.data)) return true;
@@ -136,29 +162,29 @@ function headingMatchesSkill(heading: string, skillName: string) {
   if (target === 'backend' && matches(aliases.backend)) return true;
   if (target === 'cloud' && matches(aliases.cloud)) return true;
   if (target === 'testing' && matches(aliases.testing)) return true;
-  return target === 'tools' && matches(aliases.tools);
+  return target === 'custom' ? matches(aliases.custom) : target === 'tools' && matches(aliases.tools);
 }
 
-function defaultSkillHeading(skillName: string) {
+function defaultSkillHeading(skillName: string, catalog: Skill[] = ALL_SKILLS) {
   const headings: Record<string, string> = {
     language: 'Programming Languages', frontend: 'Frontend Development', backend: 'Backend Development',
-    data: 'Databases and Data', cloud: 'Developer Tools and DevOps', testing: 'Testing and Tools', tools: 'Technical Skills',
+    data: 'Databases and Data', cloud: 'Developer Tools and DevOps', testing: 'Testing and Tools', tools: 'Technical Skills', custom: 'Additional Skills',
   };
-  return headings[skillSectionFor(skillName)];
+  return headings[skillSectionFor(skillName, catalog)] || 'Additional Skills';
 }
 
-function appendSkillValue(value: string, skillName: string) {
-  if (findSkillInText(value, SKILL_BY_NAME.get(skillName)!)) return value;
+function appendSkillValue(value: string, skill: Skill) {
+  if (findSkillInText(value, skill)) return value;
   const suffix = value.match(/\s*(\\\\(?:\[[^\]]*\])?\s*)$/)?.[1] || '';
   const body = suffix ? value.slice(0, -suffix.length).trimEnd() : value.trimEnd();
-  return `${body}${body.trim() ? ', ' : ''}${skillName}${suffix || ' \\\\'}`;
+  return `${body}${body.trim() ? ', ' : ''}${skill.name}${suffix || ' \\\\'}`;
 }
 
-function addSkillToCode(code: string, skillName: string) {
+function addSkillToCode(code: string, skillName: string, catalog: Skill[] = ALL_SKILLS) {
   const section = getSkillsSectionRange(code);
   if (!section) {
     const endDocument = code.lastIndexOf('\\end{document}');
-    const newSection = `\\section*{Skills}\n\\textbf{${defaultSkillHeading(skillName)}:} ${skillName} \\\\`;
+    const newSection = `\\section*{Skills}\n\\textbf{${defaultSkillHeading(skillName, catalog)}:} ${skillName} \\\\`;
     if (endDocument >= 0) return `${code.slice(0, endDocument).trimEnd()}\n\n${newSection}\n\n${code.slice(endDocument)}`;
     return `${code.trimEnd()}\n\n${newSection}\n`;
   }
@@ -168,22 +194,22 @@ function addSkillToCode(code: string, skillName: string) {
   const legacy = body.match(new RegExp(`${escapeRegExp(START)}([\\s\\S]*?)${escapeRegExp(END)}`));
   const names = new Set<string>([skillName]);
   if (legacy) {
-    for (const item of ALL_SKILLS) if (findSkillInText(legacy[1], item)) names.add(item.name);
+    for (const item of catalog) if (findSkillInText(legacy[1], item)) names.add(item.name);
     body = body.replace(legacy[0], '');
   }
 
   for (const name of names) {
-    const item = SKILL_BY_NAME.get(name);
+    const item = catalog.find((skill) => skill.name === name);
     if (!item) continue;
     const lines = body.split('\n');
     let rowIndex = -1;
     for (let i = 0; i < lines.length; i++) {
       const row = lines[i].match(/^(\s*\\textbf\{)([^}]+)(\}\s*)(.*)$/i);
-      if (row && headingMatchesSkill(row[2].replace(/:\s*$/, ''), name)) { rowIndex = i; break; }
+      if (row && headingMatchesSkill(row[2].replace(/:\s*$/, ''), name, catalog)) { rowIndex = i; break; }
     }
     if (rowIndex >= 0) {
       const row = lines[rowIndex].match(/^(\s*\\textbf\{[^}]+\}\s*)(.*)$/i)!;
-      lines[rowIndex] = row[1] + appendSkillValue(row[2], name);
+      lines[rowIndex] = row[1] + appendSkillValue(row[2], item);
       body = lines.join('\n');
       continue;
     }
@@ -191,7 +217,7 @@ function addSkillToCode(code: string, skillName: string) {
     // Also recognize explicit LaTeX subsections and place list entries inside them.
     const subsectionIndex = lines.findIndex((line) => {
       const heading = line.match(/\\subsection\*?\s*\{([^}]+)\}/i);
-      return heading && headingMatchesSkill(heading[1], name);
+      return heading && headingMatchesSkill(heading[1], name, catalog);
     });
     if (subsectionIndex >= 0) {
       let end = lines.findIndex((line, index) => index > subsectionIndex && /\\(?:subsection|section)\*?\s*\{/.test(line));
@@ -203,7 +229,7 @@ function addSkillToCode(code: string, skillName: string) {
       continue;
     }
 
-    const heading = defaultSkillHeading(name);
+    const heading = defaultSkillHeading(name, catalog);
     const newRow = `\\textbf{${heading}:} ${name} \\\\`;
     const insertAt = body.search(/\n\s*\n/);
     if (insertAt >= 0) body = `${body.slice(0, insertAt)}\n${newRow}${body.slice(insertAt)}`;
@@ -212,8 +238,8 @@ function addSkillToCode(code: string, skillName: string) {
   return `${code.slice(0, section.start)}${body}${code.slice(section.end)}`;
 }
 
-function removeSkillFromCode(code: string, skillName: string) {
-  const skill = SKILL_BY_NAME.get(skillName);
+function removeSkillFromCode(code: string, skillName: string, catalog: Skill[] = ALL_SKILLS) {
+  const skill = catalog.find((item) => item.name === skillName);
   if (!skill) return code;
   const range = getSkillsSectionRange(code);
   if (!range) return code;
@@ -274,11 +300,14 @@ function App() {
   const [code, setCode] = useState(initial.code);
   const [required, setRequired] = useState<Set<string>>(new Set(initial.required || []));
   const [overrides, setOverrides] = useState(initial.overrides || {});
+  const [customSkills, setCustomSkills] = useState<Skill[]>(initial.customSkills || []);
   const [fileName, setFileName] = useState(initial.fileName || 'resume.tex');
   const [compileEngine, setCompileEngine] = useState<CompileEngine>(initial.engine || 'pdflatex');
   const [query, setQuery] = useState('');
   const [jdText, setJdText] = useState('');
   const [jdFeedback, setJdFeedback] = useState('');
+  const [customSkillName, setCustomSkillName] = useState('');
+  const [skillModalOpen, setSkillModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [autoCompile, setAutoCompile] = useState(true);
   const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
@@ -293,15 +322,18 @@ function App() {
   const compilerRef = useRef<import('@siglum/engine').SiglumCompiler | null>(null);
   const queuedSourceRef = useRef<string | null>(null);
   const isCompilingRef = useRef(false);
-  const detected = useMemo(() => scanSkills(code), [code]);
+  const skillCatalog = useMemo(() => [...ALL_SKILLS, ...customSkills], [customSkills]);
+  const detected = useMemo(() => scanSkills(code, skillCatalog), [code, skillCatalog]);
   const inResume = (name: string): boolean => Object.hasOwn(overrides, name) ? overrides[name] : detected.has(name);
-  const activeCount = ALL_SKILLS.filter((skill) => inResume(skill.name)).length;
+  const activeCount = skillCatalog.filter((skill) => inResume(skill.name)).length;
   const requiredCount = required.size;
-  const jdSkills = useMemo(() => ALL_SKILLS.filter((skill) => jdText && findSkillInPlainText(jdText, skill)), [jdText]);
+  const jdSkills = useMemo(() => skillCatalog.filter((skill) => jdText && findSkillInPlainText(jdText, skill)), [jdText, skillCatalog]);
+  const newJdSkills = useMemo(() => jdText ? extractUnlistedTechnologies(jdText, skillCatalog) : [], [jdText, skillCatalog]);
+  const applicableJdSkills = useMemo(() => [...jdSkills, ...newJdSkills], [jdSkills, newJdSkills]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, required: [...required], overrides, fileName, engine: compileEngine }));
-  }, [code, required, overrides, fileName, compileEngine]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, required: [...required], overrides, customSkills, fileName, engine: compileEngine }));
+  }, [code, required, overrides, customSkills, fileName, compileEngine]);
 
   useEffect(() => () => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -373,7 +405,8 @@ function App() {
       if (!(event.metaKey || event.ctrlKey)) return;
       if (event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        searchRef.current?.focus();
+        if (skillModalOpen) searchRef.current?.focus();
+        else setSkillModalOpen(true);
       }
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -382,7 +415,19 @@ function App() {
     };
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, [code, compileSource]);
+  }, [code, compileSource, skillModalOpen]);
+
+  useEffect(() => {
+    if (!skillModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSkillModalOpen(false); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [skillModalOpen]);
 
   useEffect(() => {
     if (!autoCompile) return;
@@ -416,8 +461,8 @@ function App() {
 
   function toggleResume(skill: Skill) {
     const currentlyInResume = inResume(skill.name);
-    if (currentlyInResume) setCode((current) => removeSkillFromCode(current, skill.name));
-    else setCode((current) => addSkillToCode(current, skill.name));
+    if (currentlyInResume) setCode((current) => removeSkillFromCode(current, skill.name, skillCatalog));
+    else setCode((current) => addSkillToCode(current, skill.name, skillCatalog));
     setOverrides((current) => ({ ...current, [skill.name]: !currentlyInResume }));
   }
 
@@ -430,17 +475,39 @@ function App() {
   }
 
   function applyJobDescription() {
-    if (!jdSkills.length) {
+    if (!applicableJdSkills.length) {
       setJdFeedback('No catalog skills found. Try including technology names such as React, Java, or Docker.');
       return;
     }
-    const found = jdSkills.map((skill) => skill.name);
-    const alreadyInResume = scanSkills(code);
+    const found = applicableJdSkills.map((skill) => skill.name);
+    const nextCatalog = [...skillCatalog, ...newJdSkills];
+    const alreadyInResume = scanSkills(code, nextCatalog);
     const addedCount = found.filter((name) => !alreadyInResume.has(name)).length;
-    setCode((current) => jdSkills.reduce((next, skill) => scanSkills(next).has(skill.name) ? next : addSkillToCode(next, skill.name), current));
+    setCustomSkills((current) => {
+      const names = new Set(current.map((skill) => skill.name.toLowerCase()));
+      return [...current, ...newJdSkills.filter((skill) => !names.has(skill.name.toLowerCase()))];
+    });
+    setCode((current) => applicableJdSkills.reduce((next, skill) => scanSkills(next, nextCatalog).has(skill.name) ? next : addSkillToCode(next, skill.name, nextCatalog), current));
     setRequired(new Set(found));
     setOverrides((current) => ({ ...current, ...Object.fromEntries(found.map((name) => [name, true])) }));
-    setJdFeedback(`Found ${found.length} ${found.length === 1 ? 'skill' : 'skills'}; added ${addedCount} to your resume.`);
+    setJdFeedback(`Found ${found.length} ${found.length === 1 ? 'skill' : 'skills'}; added ${addedCount} to your resume${newJdSkills.length ? ` and saved ${newJdSkills.length} new ${newJdSkills.length === 1 ? 'technology' : 'technologies'} to your library` : ''}.`);
+  }
+
+  function addCustomSkill() {
+    const name = customSkillName.trim().replace(/\s+/g, ' ');
+    if (!name) return;
+    if (skillCatalog.some((skill) => skill.name.toLowerCase() === name.toLowerCase())) {
+      setJdFeedback(`${name} is already in your skill library.`);
+      return;
+    }
+    const skill: Skill = { name, aliases: [], group: inferSkillGroup(name) };
+    const nextCatalog = [...skillCatalog, skill];
+    setCustomSkills((current) => [...current, skill]);
+    setCode((current) => addSkillToCode(current, name, nextCatalog));
+    setRequired((current) => new Set([...current, name]));
+    setOverrides((current) => ({ ...current, [name]: true }));
+    setCustomSkillName('');
+    setJdFeedback(`${name} added to your library and resume.`);
   }
 
   async function copyCode() {
@@ -451,11 +518,15 @@ function App() {
     } catch { setCopied(false); }
   }
 
-  const filteredGroups = GROUPS.map((group) => ({
+  const filteredGroups = [...GROUPS.map((group) => ({
     ...group,
-    skills: group.skills.map(([name, aliases]) => ({ name, aliases, group: group.id }))
+    skills: [
+      ...group.skills.map(([name, aliases]) => ({ name, aliases, group: group.id })),
+      ...customSkills.filter((skill) => skill.group === group.id),
+    ]
       .filter((skill) => !query || `${skill.name} ${skill.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase())),
-  })).filter((group) => group.skills.length);
+  })), ...(customSkills.some((skill) => !GROUPS.some((group) => group.id === skill.group)) ? [{ id: 'custom', title: 'Added technologies', icon: '＋', skills: customSkills.filter((skill) => !GROUPS.some((group) => group.id === skill.group)).filter((skill) => !query || skill.name.toLowerCase().includes(query.toLowerCase())) }] : [])]
+    .filter((group) => group.skills.length);
   const lintExtension = linter((view) => diagnostics.filter((item) => item.line > 0).map((item) => {
     const line = view.state.doc.line(Math.min(item.line, view.state.doc.lines));
     return { from: line.from, to: line.to, severity: item.severity, message: item.message };
@@ -479,49 +550,10 @@ function App() {
           <h1>Make your skills <span>fit the role.</span></h1>
           <p>Shape your resume in LaTeX. Tune your skills for the job, one click at a time.</p>
         </div>
-        <div className="intro-meta"><span className="sparkle">✳</span><span>No account needed<br /><b>Your code stays on this device</b></span></div>
+        <div className="intro-actions"><div className="intro-meta"><span className="sparkle">✳</span><span>No account needed<br /><b>Your code stays on this device</b></span></div><button className="jd-open-button" onClick={() => setSkillModalOpen(true)}>Tailor to a job description <span>↗</span></button></div>
       </section>
 
       <section className="workspace" aria-label="Resume tailoring workspace">
-        <aside className="skills-panel panel">
-          <div className="panel-heading skills-heading">
-            <div className="heading-title"><span className="section-icon skills-icon">✳</span><div><h2>Skills library</h2><span className="subheading">Pick what the role calls for</span></div></div>
-            <button className="more-button" aria-label="Skill library information" title="Select a skill to add or remove it from your resume. Use the JD toggle to mark what the role requires.">···</button>
-          </div>
-          <div className="jd-matcher">
-            <label htmlFor="jd-text">PASTE JOB DESCRIPTION</label>
-            <textarea id="jd-text" value={jdText} onChange={(event) => { setJdText(event.target.value); setJdFeedback(''); }} placeholder="Paste the job description here…" rows={3} />
-            <div className="jd-matcher-actions">
-              <span>{jdSkills.length ? `${jdSkills.length} catalog ${jdSkills.length === 1 ? 'skill' : 'skills'} detected` : 'Skills are detected from the library'}</span>
-              <button onClick={applyJobDescription} disabled={!jdSkills.length}>Match &amp; add</button>
-            </div>
-            {jdFeedback && <p role="status">{jdFeedback}</p>}
-          </div>
-          <div className="stats-row">
-            <div className="stat-card"><span className="stat-label">IN YOUR RESUME</span><div><strong>{activeCount.toString().padStart(2, '0')}</strong><span className="stat-caption">skills</span></div></div>
-            <div className="stat-card required-stat"><span className="stat-label">NEEDED FOR JD</span><div><strong>{requiredCount.toString().padStart(2, '0')}</strong><span className="stat-caption">selected</span></div></div>
-          </div>
-          <label className="search-box"><span className="search-icon">⌕</span><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search skills..." /><kbd>⌘ K</kbd></label>
-          <div className="list-head"><span>SKILL SET</span><span>IN RESUME</span><span>FOR JD</span></div>
-          <div className="skill-groups">
-            {filteredGroups.length ? filteredGroups.map((group) => (
-              <section className="skill-group" key={group.id}>
-                <h3><span className={`group-icon group-${group.id}`}>{group.icon}</span>{group.title}<span className="group-count">{group.skills.length.toString().padStart(2, '0')}</span></h3>
-                {group.skills.map((skill) => {
-                  const present = inResume(skill.name);
-                  const needed = required.has(skill.name);
-                  return <div className={`skill-row ${present ? 'is-present' : ''} ${needed ? 'is-required' : ''}`} key={skill.name}>
-                    <button className="skill-name" onClick={() => toggleResume(skill)} title={present ? 'Remove from resume' : 'Add to resume'}><span className={`resume-check ${present ? 'checked' : ''}`}>{present ? '✓' : '+'}</span><span>{skill.name}</span></button>
-                    <button className={`status-cell ${present ? 'present-label' : ''}`} onClick={() => toggleResume(skill)} aria-label={`${present ? 'Remove' : 'Add'} ${skill.name} ${present ? 'from' : 'to'} resume`}>{present ? <span className="tiny-check">✓</span> : <span className="empty-dash">—</span>}</button>
-                    <button className={`jd-toggle ${needed ? 'selected' : ''}`} onClick={() => toggleRequired(skill.name)} aria-label={`${needed ? 'Unmark' : 'Mark'} ${skill.name} as needed for job`}><span /></button>
-                  </div>;
-                })}
-              </section>
-            )) : <div className="empty-search"><span>⌕</span><b>No skills found</b><small>Try another search term.</small></div>}
-          </div>
-          <div className="panel-footnote"><span>✳</span> Catalog skills are matched against your LaTeX source.</div>
-        </aside>
-
         <div className="editor-panel panel">
           <div className="panel-heading editor-heading">
             <div className="heading-title"><span className="section-icon code-icon">{`</>`}</span><div><h2>Resume source</h2><span className="subheading">Edit your LaTeX directly</span></div></div>
@@ -571,6 +603,50 @@ function App() {
           <div className="preview-footer"><span>PDFLATEX / XELATEX</span><span>COMPILED LOCALLY</span></div>
         </section>
       </section>
+      {skillModalOpen && <div className="skill-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSkillModalOpen(false); }}>
+        <section className="skill-modal" role="dialog" aria-modal="true" aria-labelledby="skill-modal-title">
+          <header className="skill-modal-header">
+            <div><span className="eyebrow"><span className="eyebrow-line" /> JOB MATCHER</span><h2 id="skill-modal-title">Tailor your resume to a job</h2><p>Paste a JD to find matching technologies and add them to your LaTeX skills section.</p></div>
+            <button className="modal-close" onClick={() => setSkillModalOpen(false)} aria-label="Close job matcher">×</button>
+          </header>
+          <div className="jd-matcher modal-jd-matcher">
+            <label htmlFor="jd-text">JOB DESCRIPTION</label>
+            <textarea id="jd-text" value={jdText} onChange={(event) => { setJdText(event.target.value); setJdFeedback(''); }} placeholder="Paste the full job description here…" rows={4} />
+            <div className="jd-matcher-actions">
+              <span>{applicableJdSkills.length ? `${jdSkills.length} in library · ${newJdSkills.length} new ${newJdSkills.length === 1 ? 'technology' : 'technologies'} found` : 'Matching happens on this device'}</span>
+              <button onClick={applyJobDescription} disabled={!applicableJdSkills.length}>Apply skills to resume</button>
+            </div>
+            {newJdSkills.length > 0 && <div className="new-tech-chips"><span>Will add to library:</span>{newJdSkills.map((skill) => <span className="new-tech-chip" key={skill.name}>{skill.name}</span>)}</div>}
+            <form className="custom-skill-form" onSubmit={(event) => { event.preventDefault(); addCustomSkill(); }}>
+              <label htmlFor="custom-skill">Missing a technology?</label>
+              <div><input id="custom-skill" value={customSkillName} onChange={(event) => setCustomSkillName(event.target.value)} placeholder="Add a technology to your library" /><button type="submit" disabled={!customSkillName.trim()}>Add technology</button></div>
+            </form>
+            {jdFeedback && <p className="jd-feedback" role="status">{jdFeedback}</p>}
+          </div>
+          <div className="skill-library-modal">
+            <div className="library-modal-heading"><div><h3>Skill library</h3><span>Choose skills manually or review matches from the JD.</span></div><div className="library-totals"><span>{activeCount} in resume</span><span>{requiredCount} for JD</span></div></div>
+            <label className="search-box"><span className="search-icon">⌕</span><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search skills..." /><kbd>⌘ K</kbd></label>
+            <div className="list-head"><span>SKILL SET</span><span>IN RESUME</span><span>FOR JD</span></div>
+            <div className="skill-groups modal-skill-groups">
+              {filteredGroups.length ? filteredGroups.map((group) => (
+                <section className="skill-group" key={group.id}>
+                  <h3><span className={`group-icon group-${group.id}`}>{group.icon}</span>{group.title}<span className="group-count">{group.skills.length.toString().padStart(2, '0')}</span></h3>
+                  {group.skills.map((skill) => {
+                    const present = inResume(skill.name);
+                    const needed = required.has(skill.name);
+                    const matched = applicableJdSkills.some((item) => item.name === skill.name);
+                    return <div className={`skill-row ${present ? 'is-present' : ''} ${needed ? 'is-required' : ''} ${matched ? 'is-jd-match' : ''}`} key={skill.name}>
+                      <button className="skill-name" onClick={() => toggleResume(skill)} title={present ? 'Remove from resume' : 'Add to resume'}><span className={`resume-check ${present ? 'checked' : ''}`}>{present ? '✓' : '+'}</span><span>{skill.name}</span>{matched && <small>JD</small>}</button>
+                      <button className={`status-cell ${present ? 'present-label' : ''}`} onClick={() => toggleResume(skill)} aria-label={`${present ? 'Remove' : 'Add'} ${skill.name} ${present ? 'from' : 'to'} resume`}>{present ? <span className="tiny-check">✓</span> : <span className="empty-dash">—</span>}</button>
+                      <button className={`jd-toggle ${needed ? 'selected' : ''}`} onClick={() => toggleRequired(skill.name)} aria-label={`${needed ? 'Unmark' : 'Mark'} ${skill.name} as needed for job`}><span /></button>
+                    </div>;
+                  })}
+                </section>
+              )) : <div className="empty-search"><span>⌕</span><b>No skills found</b><small>Try another search term.</small></div>}
+            </div>
+          </div>
+        </section>
+      </div>}
       <footer className="page-footer"><span>DOWND <i>·</i> BUILT FOR THE DETAILS</span><span>LATEX FIRST, ALWAYS <span className="footer-heart">♥</span></span></footer>
     </main>
   );
