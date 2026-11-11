@@ -103,33 +103,105 @@ function scanSkills(code: string): Set<string> {
   return new Set(ALL_SKILLS.filter((skill) => findSkillInText(scanText, skill)).map((skill) => skill.name));
 }
 
-function buildManagedBlock(names: Set<string>) {
-  const grouped = GROUPS.map((group) => {
-    const items = [...names].filter((name) => SKILL_BY_NAME.get(name)?.group === group.id);
-    return items.length ? `\\textbf{${group.title}:} ${items.join(', ')} \\\\` : null;
-  }).filter(Boolean);
-  return [START, ...grouped, END].join('\n');
+function skillSectionFor(skillName: string) {
+  if (['Java', 'JavaScript', 'TypeScript', 'Python', 'C#', 'Go'].includes(skillName)) return 'language';
+  if (skillName === 'SQL') return 'data';
+  return SKILL_BY_NAME.get(skillName)?.group || 'tools';
+}
+
+function headingMatchesSkill(heading: string, skillName: string) {
+  const value = normalize(heading);
+  const target = skillSectionFor(skillName);
+  const aliases: Record<string, string[]> = {
+    language: ['programming language', 'languages', 'language'],
+    frontend: ['frontend', 'front end', 'ui', 'web development'],
+    backend: ['backend', 'back end', 'server side'],
+    data: ['database', 'data', 'storage'],
+    cloud: ['devops', 'developer tools', 'cloud', 'infrastructure', 'tools'],
+    testing: ['testing', 'test', 'qa', 'quality assurance'],
+    tools: ['tools', 'technical skills', 'skills'],
+  };
+  const matches = (terms: string[]) => terms.some((term) => value.includes(term));
+  if (target === 'data' && matches(aliases.data)) return true;
+  if (target === 'language' && matches(aliases.language)) return true;
+  if (target === 'frontend' && matches(aliases.frontend)) return true;
+  if (target === 'backend' && matches(aliases.backend)) return true;
+  if (target === 'cloud' && matches(aliases.cloud)) return true;
+  if (target === 'testing' && matches(aliases.testing)) return true;
+  return target === 'tools' && matches(aliases.tools);
+}
+
+function defaultSkillHeading(skillName: string) {
+  const headings: Record<string, string> = {
+    language: 'Programming Languages', frontend: 'Frontend Development', backend: 'Backend Development',
+    data: 'Databases and Data', cloud: 'Developer Tools and DevOps', testing: 'Testing and Tools', tools: 'Technical Skills',
+  };
+  return headings[skillSectionFor(skillName)];
+}
+
+function appendSkillValue(value: string, skillName: string) {
+  if (findSkillInText(value, SKILL_BY_NAME.get(skillName)!)) return value;
+  const suffix = value.match(/\s*(\\\\(?:\[[^\]]*\])?\s*)$/)?.[1] || '';
+  const body = suffix ? value.slice(0, -suffix.length).trimEnd() : value.trimEnd();
+  return `${body}${body.trim() ? ', ' : ''}${skillName}${suffix || ' \\\\'}`;
 }
 
 function addSkillToCode(code: string, skillName: string) {
-  const selected = new Set<string>();
-  const existingBlock = code.match(new RegExp(`${escapeRegExp(START)}([\\s\\S]*?)${escapeRegExp(END)}`));
-  if (existingBlock) {
-    for (const skill of ALL_SKILLS) if (findSkillInText(existingBlock[1], skill)) selected.add(skill.name);
-  }
-  selected.add(skillName);
-  const block = buildManagedBlock(selected);
-  if (existingBlock) return code.replace(existingBlock[0], block);
-
   const section = getSkillsSectionRange(code);
-  if (section) {
-    return `${code.slice(0, section.end).trimEnd()}\n${block}\n${code.slice(section.end).replace(/^\s*/, '\n')}`;
+  if (!section) {
+    const endDocument = code.lastIndexOf('\\end{document}');
+    const newSection = `\\section*{Skills}\n\\textbf{${defaultSkillHeading(skillName)}:} ${skillName} \\\\`;
+    if (endDocument >= 0) return `${code.slice(0, endDocument).trimEnd()}\n\n${newSection}\n\n${code.slice(endDocument)}`;
+    return `${code.trimEnd()}\n\n${newSection}\n`;
   }
 
-  const endDocument = code.lastIndexOf('\\end{document}');
-  const newSection = `\\section*{Skills}\n${block}`;
-  if (endDocument >= 0) return `${code.slice(0, endDocument).trimEnd()}\n\n${newSection}\n\n${code.slice(endDocument)}`;
-  return `${code.trimEnd()}\n\n${newSection}\n`;
+  let body = code.slice(section.start, section.end);
+  // Migrate any older app-managed block into the actual resume headings.
+  const legacy = body.match(new RegExp(`${escapeRegExp(START)}([\\s\\S]*?)${escapeRegExp(END)}`));
+  const names = new Set<string>([skillName]);
+  if (legacy) {
+    for (const item of ALL_SKILLS) if (findSkillInText(legacy[1], item)) names.add(item.name);
+    body = body.replace(legacy[0], '');
+  }
+
+  for (const name of names) {
+    const item = SKILL_BY_NAME.get(name);
+    if (!item) continue;
+    const lines = body.split('\n');
+    let rowIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const row = lines[i].match(/^(\s*\\textbf\{)([^}]+)(\}\s*)(.*)$/i);
+      if (row && headingMatchesSkill(row[2].replace(/:\s*$/, ''), name)) { rowIndex = i; break; }
+    }
+    if (rowIndex >= 0) {
+      const row = lines[rowIndex].match(/^(\s*\\textbf\{[^}]+\}\s*)(.*)$/i)!;
+      lines[rowIndex] = row[1] + appendSkillValue(row[2], name);
+      body = lines.join('\n');
+      continue;
+    }
+
+    // Also recognize explicit LaTeX subsections and place list entries inside them.
+    const subsectionIndex = lines.findIndex((line) => {
+      const heading = line.match(/\\subsection\*?\s*\{([^}]+)\}/i);
+      return heading && headingMatchesSkill(heading[1], name);
+    });
+    if (subsectionIndex >= 0) {
+      let end = lines.findIndex((line, index) => index > subsectionIndex && /\\(?:subsection|section)\*?\s*\{/.test(line));
+      if (end < 0) end = lines.length;
+      const itemizeEnd = lines.findIndex((line, index) => index > subsectionIndex && index < end && /\\end\s*\{itemize\}/.test(line));
+      if (itemizeEnd >= 0) lines.splice(itemizeEnd, 0, `  \\item ${name}`);
+      else lines.splice(subsectionIndex + 1, 0, `\\textbf{${name}}`);
+      body = lines.join('\n');
+      continue;
+    }
+
+    const heading = defaultSkillHeading(name);
+    const newRow = `\\textbf{${heading}:} ${name} \\\\`;
+    const insertAt = body.search(/\n\s*\n/);
+    if (insertAt >= 0) body = `${body.slice(0, insertAt)}\n${newRow}${body.slice(insertAt)}`;
+    else body = `${body.trimEnd()}\n${newRow}\n`;
+  }
+  return `${code.slice(0, section.start)}${body}${code.slice(section.end)}`;
 }
 
 function removeSkillFromCode(code: string, skillName: string) {
@@ -138,23 +210,23 @@ function removeSkillFromCode(code: string, skillName: string) {
   const range = getSkillsSectionRange(code);
   if (!range) return code;
   const original = code.slice(range.start, range.end);
-  const managed = original.match(new RegExp(`${escapeRegExp(START)}([\\s\\S]*?)${escapeRegExp(END)}`));
-  if (managed) {
-    const names = ALL_SKILLS.filter((item) => item.name !== skillName && findSkillInText(managed[1], item)).map((item) => item.name);
-    const replacement = names.length ? buildManagedBlock(new Set(names)) : '';
-    const changed = original.replace(managed[0], replacement);
-    return `${code.slice(0, range.start)}${changed}${code.slice(range.end)}`;
-  }
-
-  // Existing resume entries are commonly comma or semicolon separated. Limit
-  // removals to the Skills section and preserve the rest of each line.
+  // Remove from the existing comma/semicolon separated row while preserving its LaTeX heading and row break.
   const variants = [skill.name, ...skill.aliases].sort((a, b) => b.length - a.length);
-  let changed = original;
-  for (const variant of variants) {
-    const token = new RegExp(`(^|[,;]\\s*)${escapeRegExp(variant)}(?=\\s*([,;]|$))`, 'ig');
-    changed = changed.replace(token, (_whole, prefix: string) => (prefix.trim() ? '' : ''));
-  }
-  changed = changed.replace(/,\s*,/g, ',').replace(/;\s*;/g, ';').replace(/[;,]\s*(?=\\|$)/gm, '').replace(/^[\s,;]+|[\s,;]+$/gm, '');
+  const changed = original.split('\n').map((line) => {
+    if (/^\s*\\item\s+/i.test(line) && findSkillInText(line, skill)) return '';
+    const row = line.match(/^(\s*\\textbf\{[^}]+\}\s*)(.*)$/i);
+    if (!row) {
+      if (/^\s*\\textbf\{[^}]+\}\s*$/.test(line) && findSkillInText(line, skill)) return '';
+      return line;
+    }
+    let value = row[2];
+    for (const variant of variants) {
+      const token = new RegExp(`(^|[,;]\\s*)${escapeRegExp(variant)}(?=\\s*([,;]|$|\\\\))`, 'ig');
+      value = value.replace(token, (_whole, prefix: string) => prefix && prefix.trim() ? prefix : '');
+    }
+    value = value.replace(/,\s*,/g, ',').replace(/;\s*;/g, ';').replace(/[,;]\s*(?=\\\\|$)/g, '').replace(/^\s*[,;]\s*|[,;]\s*$/g, '');
+    return row[1] + value;
+  }).join('\n');
   return `${code.slice(0, range.start)}${changed}${code.slice(range.end)}`;
 }
 
