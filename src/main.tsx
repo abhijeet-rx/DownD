@@ -65,6 +65,13 @@ function normalize(value: string) {
     .toLowerCase();
 }
 
+function detectResumeEngine(source: string): 'pdflatex' | 'xelatex' {
+  const uncommented = source.replace(/(^|[^\\])%.*$/gm, '$1 ');
+  const needsXeLaTeX = /\\usepackage(?:\s*\[[^\]]*\])?\s*\{[^}]*\b(?:fontspec|unicode-math)\b[^}]*\}/i.test(uncommented)
+    || /\\(?:setmainfont|setsansfont|setmonofont|setmathfont|newfontface|newfontfamily|fontspec)\b/i.test(uncommented);
+  return needsXeLaTeX ? 'xelatex' : 'pdflatex';
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -234,10 +241,23 @@ function App() {
           await compilerRef.current.init();
         }
         setCompileStatus('compiling');
-        setCompileLog('Compiling LaTeX…');
-        const result = await compilerRef.current.compile(currentSource, { mainFile: fileName, engine: compileEngine });
+        const activeEngine = compileEngine === 'auto' ? detectResumeEngine(currentSource) : compileEngine;
+        setCompileLog(compileEngine === 'auto'
+          ? `Auto selected ${activeEngine === 'pdflatex' ? 'pdfLaTeX' : 'XeLaTeX'}. Compiling LaTeX…`
+          : 'Compiling LaTeX…');
+        let result = await compilerRef.current.compile(currentSource, { mainFile: fileName, engine: activeEngine });
         if (queuedSourceRef.current !== null) continue;
-        const log = [result.error, result.log].filter(Boolean).join('\n');
+        let log = [result.error, result.log].filter(Boolean).join('\n');
+        let fallbackNotice = '';
+        if (!result.success && activeEngine === 'xelatex'
+          && /can't find[^\n]*xelatex\.fmt/i.test(log)
+          && detectResumeEngine(currentSource) === 'pdflatex') {
+          fallbackNotice = 'XeLaTeX is unavailable because its format file is missing. Retrying this compatible source with pdfLaTeX.\n\n';
+          result = await compilerRef.current.compile(currentSource, { mainFile: fileName, engine: 'pdflatex' });
+          if (queuedSourceRef.current !== null) continue;
+          log = [result.error, result.log].filter(Boolean).join('\n');
+        }
+        log = fallbackNotice + log;
         setCompileLog(log || 'Compilation finished successfully.');
         const foundDiagnostics = parseDiagnostics(log, fileName);
         if (result.success) {
