@@ -398,6 +398,7 @@ function parseDiagnostics(log: string, fileName: string): Diagnostic[] {
 }
 
 function App() {
+  const [startupLoading, setStartupLoading] = useState(true);
   const [initial] = useState(readSavedState);
   const [code, setCode] = useState(initial.code);
   const [defaultCode, setDefaultCode] = useState(initial.defaultCode || initial.code);
@@ -432,6 +433,11 @@ function App() {
   const uploadRef = useRef<HTMLInputElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const compilerRef = useRef<import('@siglum/engine').SiglumCompiler | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStartupLoading(false), 1100);
+    return () => window.clearTimeout(timer);
+  }, []);
   const queuedSourceRef = useRef<string | null>(null);
   const isCompilingRef = useRef(false);
   const skillCatalog = useMemo(() => {
@@ -693,6 +699,13 @@ function App() {
     const line = view.state.doc.line(Math.min(item.line, view.state.doc.lines));
     return { from: line.from, to: line.to, severity: item.severity, message: item.message };
   }));
+
+  if (startupLoading) return <main className="startup-screen" aria-label="Loading DownD workspace">
+    <div className="startup-brand"><span className="brand-mark" aria-hidden="true">dD</span><span>DownD</span></div>
+    <div className="startup-progress" aria-hidden="true"><span /></div>
+    <p>Preparing your resume workspace</p>
+    <small>Make your skills easier for applicant tracking systems to find.</small>
+  </main>;
 
   return (
     <main className="app-shell">

@@ -29,6 +29,14 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 a { color: inherit; }
 :focus-visible { outline: 3px solid #287b5d; outline-offset: 2px; }
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--paper); }
+.startup-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: var(--paper); text-align: center; }
+.startup-brand { display: flex; align-items: center; gap: 10px; font: 600 22px/1 "IBM Plex Sans", sans-serif; letter-spacing: -.04em; }
+.startup-brand .brand-mark { width: 36px; height: 36px; }
+.startup-progress { width: min(220px, 64vw); height: 2px; overflow: hidden; margin-top: 30px; background: var(--rule); }
+.startup-progress span { display: block; width: 42%; height: 100%; background: var(--accent); animation: startup-sweep 900ms ease-in-out infinite alternate; }
+.startup-screen p { margin: 18px 0 5px; font: 500 18px/1.35 "IBM Plex Serif", serif; }
+.startup-screen small { color: var(--secondary-ink); font-size: 12px; }
+@keyframes startup-sweep { from { transform: translateX(-100%); } to { transform: translateX(240%); } }
 .topbar { height: 60px; flex: 0 0 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--rule); background: var(--sheet); }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 3px; color: #f8fbf8; background: var(--accent); font: 600 15px/1 "IBM Plex Sans", sans-serif; letter-spacing: -.07em; }
