@@ -46,8 +46,9 @@ a { color: inherit; }
 .jd-open-button, .compile-button, .pdf-empty button { min-height: 40px; padding: 0 15px; border: 1px solid var(--accent); border-radius: 3px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; }
 .jd-open-button:hover, .compile-button:hover:not(:disabled), .pdf-empty button:hover { background: #104a36; }
 .mobile-workbench-tabs { display: none; }
-.workspace { display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); align-items: stretch; flex: 1 1 auto; min-height: 660px; margin: 0 20px 18px; border: 1px solid var(--rule); background: var(--sheet); }
+.workspace { display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); align-items: stretch; flex: 0 0 auto; height: max(560px, calc(100vh - 210px)); min-height: 0; margin: 0 20px 18px; border: 1px solid var(--rule); background: var(--sheet); }
 .panel { min-width: 0; display: flex; flex-direction: column; }
+.editor-panel, .preview-panel { min-height: 0; height: 100%; overflow: hidden; }
 .editor-panel { border-right: 1px solid var(--rule); }
 .panel-heading { min-height: 58px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--rule); }
 .heading-title { min-width: 0; display: flex; align-items: center; }
@@ -62,7 +63,7 @@ a { color: inherit; }
 .editor-mode { font: 500 11px/1 "IBM Plex Sans", sans-serif; }
 .auto-compile { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .auto-compile input { accent-color: var(--accent); }
-.editor-wrap { position: relative; min-height: 0; height: 1px; flex: 1 1 440px; overflow: hidden; background: #fff; }
+.editor-wrap { position: relative; min-height: 0; height: 0; flex: 1 1 0; overflow: hidden; background: #fff; }
 .editor-wrap .cm-editor { height: 100%; min-height: 0; color: #25352b; font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .editor-wrap .cm-scroller { height: 100%; overflow: auto !important; overscroll-behavior: contain; }
 .editor-wrap .cm-gutters { background: #f2f5f2; color: #7b887e; border-right: 1px solid #dce4dd; }
@@ -187,14 +188,14 @@ a { color: inherit; }
 @media (max-width: 900px) {
   .topbar { padding: 0 18px; }
   .intro { padding: 18px; align-items: start; }
-  .workspace { display: block; min-height: 0; margin: 0 12px 14px; border: 0; background: transparent; }
+  .workspace { display: block; height: auto; min-height: 0; margin: 0 12px 14px; border: 0; background: transparent; }
   .mobile-workbench-tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 0 12px 10px; border: 1px solid var(--rule); background: var(--sheet); }
   .mobile-workbench-tabs [role="tab"] { min-height: 42px; border: 0; background: transparent; color: var(--secondary-ink); font-size: 12px; }
   .mobile-workbench-tabs [role="tab"][aria-selected="true"] { background: var(--accent); color: #fff; }
-  .editor-panel, .preview-panel { min-height: min(76vh, 850px); border: 1px solid var(--rule); background: var(--sheet); }
+  .editor-panel, .preview-panel { min-height: min(76vh, 850px); height: min(76vh, 850px); border: 1px solid var(--rule); background: var(--sheet); }
   .workspace.mobile-show-editor .preview-panel, .workspace.mobile-show-preview .editor-panel { display: none; }
   .workspace.mobile-show-editor .editor-panel, .workspace.mobile-show-preview .preview-panel { display: flex; }
-  .editor-wrap { min-height: 280px; flex-basis: 45vh; }
+  .editor-wrap { min-height: 0; flex-basis: 0; }
   .pdf-stage, .pdf-viewer { min-height: 0; }
   .pdf-stage { height: calc(76vh - 125px); }
 }
@@ -209,14 +210,14 @@ a { color: inherit; }
   .jd-open-button { min-height: 39px; padding: 0 11px; font-size: 12px; }
   .mobile-workbench-tabs { margin: 0 10px 9px; }
   .workspace { margin: 0 10px 12px; }
-  .editor-panel, .preview-panel { min-height: 72vh; }
+  .editor-panel, .preview-panel { min-height: 72vh; height: 72vh; }
   .panel-heading { padding: 9px 10px; gap: 7px; }
   .heading-title h2 { font-size: 13px; }
   .subheading { font-size: 10px; }
   .editor-actions { gap: 4px; }
   .copy-button, .preview-link, .download-button { min-height: 32px; padding: 0 7px; font-size: 10px; }
   .editor-toolbar { padding: 0 10px; }
-  .editor-wrap { flex-basis: 40vh; }
+  .editor-wrap { flex-basis: 0; }
   .console-header { flex-wrap: wrap; padding: 7px 9px; }
   .console-title-wrap { flex: 1 1 100%; }
   .compile-controls { width: 100%; justify-content: flex-end; }
