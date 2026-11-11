@@ -293,7 +293,8 @@ function App() {
     if (!file) return;
     const text = await file.text();
     setCode(text);
-    setFileName(file.name);
+    const baseName = file.name.replace(/\.[^.]+$/, '').trim().replace(/[^\w.-]+/g, '_') || 'resume';
+    setFileName(`${baseName}.tex`);
     setOverrides({});
   }
 
