@@ -435,7 +435,7 @@ function App() {
   const compilerRef = useRef<import('@siglum/engine').SiglumCompiler | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setStartupLoading(false), 1100);
+    const timer = window.setTimeout(() => setStartupLoading(false), 2500);
     return () => window.clearTimeout(timer);
   }, []);
   const queuedSourceRef = useRef<string | null>(null);
