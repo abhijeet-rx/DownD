@@ -1,11 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { createRoot } from 'react-dom/client';
+import CodeMirror from '@uiw/react-codemirror';
+import { StreamLanguage } from '@codemirror/language';
+import { stex } from '@codemirror/legacy-modes/mode/stex';
+import { linter } from '@codemirror/lint';
+import { EditorView, highlightActiveLine } from '@codemirror/view';
 import './style.css';
 
 const STORAGE_KEY = 'tailor-tex-workspace-v1';
 type Skill = { name: string; aliases: string[]; group: string };
 type SkillGroup = { id: string; title: string; icon: string; skills: [string, string[]][] };
-type SavedState = { code: string; required: string[]; overrides: Record<string, boolean>; fileName?: string };
+type SavedState = { code: string; required: string[]; overrides: Record<string, boolean>; fileName?: string; engine?: CompileEngine };
+type Diagnostic = { line: number; message: string; severity: 'error' | 'warning' | 'info' };
+type CompileStatus = 'idle' | 'loading' | 'compiling' | 'success' | 'error';
+type CompileEngine = 'pdflatex' | 'xelatex' | 'auto';
 const STARTER = `\\documentclass[letterpaper,10pt]{article}
 \\usepackage[margin=0.7in]{geometry}
 \\begin{document}
@@ -35,6 +43,16 @@ const ALL_SKILLS = GROUPS.flatMap((group) => group.skills.map(([name, aliases]) 
 const SKILL_BY_NAME = new Map<string, Skill>(ALL_SKILLS.map((skill) => [skill.name, skill]));
 const START = '% tailor.tex:skills:start';
 const END = '% tailor.tex:skills:end';
+const latexLanguage = StreamLanguage.define(stex);
+const editorTheme = EditorView.theme({
+  '&': { height: '100%', fontSize: '12px', backgroundColor: '#fff' },
+  '.cm-scroller': { overflow: 'auto', fontFamily: 'DM Mono, Consolas, monospace', lineHeight: '1.75' },
+  '.cm-gutters': { backgroundColor: '#fbfcfa', borderRight: '1px solid #eef0ec', color: '#b8c1b9' },
+  '.cm-activeLine': { backgroundColor: '#f8faf7' },
+  '.cm-activeLineGutter': { backgroundColor: '#f3f7f3' },
+  '.cm-content': { padding: '16px 0' },
+  '.cm-line': { padding: '0 16px' },
+});
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/\\textit\{|\\textbf\{|\\emph\{|[{}\\]/g, '').replace(/[^a-z0-9+#.]/g, '');
@@ -129,7 +147,30 @@ function readSavedState(): SavedState {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (saved && typeof saved.code === 'string') return saved;
   } catch { /* Start with a clean local workspace if saved data is unreadable. */ }
-  return { code: STARTER, required: [], overrides: {}, fileName: 'resume.tex' };
+  return { code: STARTER, required: [], overrides: {}, fileName: 'resume.tex', engine: 'pdflatex' };
+}
+
+function parseDiagnostics(log: string, fileName: string): Diagnostic[] {
+  const result: Diagnostic[] = [];
+  const text = log.replaceAll('\\r', '');
+  const fileBase = fileName.split(/[\\/]/).pop() || 'resume.tex';
+  const escapedFile = escapeRegExp(fileBase);
+  const linePatterns = [
+    new RegExp(`(?:^|\\n)(?:.*[\\/])?${escapedFile}:(\\d+):\\s*(.*)`, 'gi'),
+    /(?:^|\n)l\.(\d+)\s*(.*)/gi,
+  ];
+  for (const pattern of linePatterns) {
+    for (const match of text.matchAll(pattern)) {
+      const message = (match[2] || 'LaTeX reported a problem').trim();
+      if (!result.some((item) => item.line === Number(match[1]) && item.message === message)) {
+        result.push({ line: Number(match[1]), message, severity: /warning/i.test(message) ? 'warning' : 'error' });
+      }
+    }
+  }
+  if (!result.length && text.trim()) {
+    result.push({ line: 0, message: text.trim().split('\n').slice(-4).join('\n'), severity: 'error' });
+  }
+  return result;
 }
 
 function App() {
@@ -138,29 +179,101 @@ function App() {
   const [required, setRequired] = useState<Set<string>>(new Set(initial.required || []));
   const [overrides, setOverrides] = useState(initial.overrides || {});
   const [fileName, setFileName] = useState(initial.fileName || 'resume.tex');
+  const [compileEngine, setCompileEngine] = useState<CompileEngine>(initial.engine || 'pdflatex');
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState(false);
+  const [autoCompile, setAutoCompile] = useState(true);
+  const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
+  const [compileLog, setCompileLog] = useState('');
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [compiledSource, setCompiledSource] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
+  const compilerRef = useRef<import('@siglum/engine').SiglumCompiler | null>(null);
+  const queuedSourceRef = useRef<string | null>(null);
+  const isCompilingRef = useRef(false);
   const detected = useMemo(() => scanSkills(code), [code]);
   const inResume = (name: string): boolean => Object.hasOwn(overrides, name) ? overrides[name] : detected.has(name);
   const activeCount = ALL_SKILLS.filter((skill) => inResume(skill.name)).length;
   const requiredCount = required.size;
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, required: [...required], overrides, fileName }));
-  }, [code, required, overrides, fileName]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, required: [...required], overrides, fileName, engine: compileEngine }));
+  }, [code, required, overrides, fileName, compileEngine]);
+
+  useEffect(() => () => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+  }, [pdfUrl]);
+
+  const compileSource = useCallback(async (source: string) => {
+    queuedSourceRef.current = source;
+    if (isCompilingRef.current) return;
+    isCompilingRef.current = true;
+    while (queuedSourceRef.current !== null) {
+      const currentSource = queuedSourceRef.current;
+      queuedSourceRef.current = null;
+      try {
+        if (!compilerRef.current) {
+          setCompileStatus('loading');
+          setCompileLog('Loading the browser-based LaTeX engine for the first compile…');
+          const [{ SiglumCompiler, resolveRuntime }, { default: workerUrl }] = await Promise.all([
+            import('@siglum/engine'),
+            import('@siglum/engine/worker?url'),
+          ]);
+          const runtime = await resolveRuntime();
+          compilerRef.current = new SiglumCompiler({ ...runtime, workerUrl });
+          await compilerRef.current.init();
+        }
+        setCompileStatus('compiling');
+        setCompileLog('Compiling LaTeX…');
+        const result = await compilerRef.current.compile(currentSource, { mainFile: fileName, engine: compileEngine });
+        if (queuedSourceRef.current !== null) continue;
+        const log = [result.error, result.log].filter(Boolean).join('\n');
+        setCompileLog(log || 'Compilation finished successfully.');
+        const foundDiagnostics = parseDiagnostics(log, fileName);
+        if (result.success) {
+          setDiagnostics(foundDiagnostics.filter((item) => item.severity === 'warning'));
+          setCompileStatus('success');
+          setCompiledSource(currentSource);
+          setPdfUrl(URL.createObjectURL(new Blob([new Uint8Array(result.pdf)], { type: 'application/pdf' })));
+        } else {
+          setDiagnostics(foundDiagnostics.length ? foundDiagnostics : [{ line: 0, message: result.error || 'Compilation failed. See the log for details.', severity: 'error' }]);
+          setCompileStatus('error');
+        }
+      } catch (error) {
+        if (queuedSourceRef.current !== null) continue;
+        const message = error instanceof Error ? error.message : String(error);
+        setCompileLog(message);
+        setDiagnostics([{ line: 0, message, severity: 'error' }]);
+        setCompileStatus('error');
+      }
+    }
+    isCompilingRef.current = false;
+  }, [fileName, compileEngine]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === 'k') {
         event.preventDefault();
         searchRef.current?.focus();
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void compileSource(code);
       }
     };
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, []);
+  }, [code, compileSource]);
+
+  useEffect(() => {
+    if (!autoCompile) return;
+    const timer = window.setTimeout(() => { void compileSource(code); }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [code, autoCompile, compileSource]);
 
   function onCodeChange(value: string) {
     setCode(value);
@@ -175,6 +288,14 @@ function App() {
     setCode(text);
     setFileName(file.name);
     setOverrides({});
+  }
+
+  function jumpToLine(lineNumber: number) {
+    const view = editorViewRef.current;
+    if (!view || lineNumber < 1 || lineNumber > view.state.doc.lines) return;
+    const line = view.state.doc.line(lineNumber);
+    view.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: 'center' }) });
+    view.focus();
   }
 
   function toggleResume(skill: Skill) {
@@ -205,6 +326,10 @@ function App() {
     skills: group.skills.map(([name, aliases]) => ({ name, aliases, group: group.id }))
       .filter((skill) => !query || `${skill.name} ${skill.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase())),
   })).filter((group) => group.skills.length);
+  const lintExtension = linter((view) => diagnostics.filter((item) => item.line > 0).map((item) => {
+    const line = view.state.doc.line(Math.min(item.line, view.state.doc.lines));
+    return { from: line.from, to: line.to, severity: item.severity, message: item.message };
+  }));
 
   return (
     <main className="app-shell">
@@ -268,14 +393,44 @@ function App() {
               <button className="copy-button" onClick={copyCode}>{copied ? 'Copied!' : 'Copy code'} <span aria-hidden="true">↗</span></button>
             </div>
           </div>
-          <div className="editor-toolbar"><span><span className="live-dot" /> LIVE EDITOR</span><span>LaTeX <span className="toolbar-divider">/</span> UTF-8</span></div>
+          <div className="editor-toolbar"><span><span className="live-dot" /> LIVE EDITOR</span><label className="auto-compile"><input type="checkbox" checked={autoCompile} onChange={(event) => setAutoCompile(event.target.checked)} /> Auto compile</label></div>
           <div className="editor-wrap">
-            <div className="line-numbers" aria-hidden="true">{code.split('\n').map((_, index) => <span key={index}>{String(index + 1).padStart(2, '0')}</span>)}</div>
-            <textarea aria-label="LaTeX resume source" spellCheck="false" value={code} onChange={(event) => onCodeChange(event.target.value)} />
+            <CodeMirror
+              value={code}
+              height="100%"
+              aria-label="LaTeX resume source"
+              extensions={[latexLanguage, editorTheme, highlightActiveLine(), lintExtension]}
+              basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, highlightActiveLineGutter: true, bracketMatching: true, closeBrackets: true, autocompletion: true }}
+              onChange={onCodeChange}
+              onCreateEditor={(view) => { editorViewRef.current = view; }}
+            />
           </div>
-          <div className="editor-footer"><span><i className="check-icon">✓</i> Saved automatically on this device</span><span>{code.split('\n').length} lines <b>·</b> {code.length} chars</span></div>
-          <div className="tip-card"><span className="tip-icon">✦</span><p><b>Quick tip</b><br />Select a skill on the left to add it to your LaTeX Skills section.</p><span className="tip-arrow">↗</span></div>
+          <div className="editor-footer"><span><i className="check-icon">✓</i> Saved on this device</span><span>{code.split('\n').length} lines <b>·</b> {code.length} chars</span></div>
+          <div className="compile-console">
+            <div className="console-header"><span>COMPILE OUTPUT</span><div className="compile-controls"><label className="engine-select-label" htmlFor="compile-engine">ENGINE</label><select id="compile-engine" className="engine-select" value={compileEngine} onChange={(event) => setCompileEngine(event.target.value as CompileEngine)}><option value="pdflatex">pdfLaTeX</option><option value="xelatex">XeLaTeX</option><option value="auto">Auto</option></select><button className="compile-button" onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>{compileStatus === 'loading' ? 'Loading engine…' : compileStatus === 'compiling' ? 'Compiling…' : 'Compile'} <span>Ctrl ↵</span></button></div></div>
+            {diagnostics.length ? <div className="diagnostics-list">
+              {diagnostics.slice(0, 5).map((item, index) => <button className={`diagnostic-row ${item.severity}`} key={`${item.line}-${index}`} onClick={() => jumpToLine(item.line)} disabled={item.line < 1}>
+                <span className="diagnostic-symbol">{item.severity === 'warning' ? '!' : '×'}</span><span className="diagnostic-message">{item.message}</span>{item.line > 0 && <span className="diagnostic-line">Ln {item.line}</span>}
+              </button>)}
+            </div> : <div className={`compile-summary ${compileStatus}`}>{compileStatus === 'success' ? '✓  No compile errors' : compileStatus === 'loading' ? 'Preparing the local LaTeX engine…' : compileStatus === 'compiling' ? 'Building your PDF…' : compileStatus === 'error' ? 'Compilation failed. Open the log for details.' : 'Ready to compile your resume.'}</div>}
+            {compileLog && <details className="raw-log"><summary>View full compiler log</summary><pre>{compileLog}</pre></details>}
+          </div>
         </div>
+
+        <section className="preview-panel panel">
+          <div className="panel-heading preview-heading">
+            <div className="heading-title"><span className="section-icon preview-icon">▧</span><div><h2>PDF preview</h2><span className="subheading">{compiledSource && compiledSource !== code ? 'Showing last successful compile' : 'Live document output'}</span></div></div>
+            <div className="preview-actions">
+              {pdfUrl && <a className="preview-link" href={pdfUrl} target="_blank" rel="noreferrer">Open ↗</a>}
+              {pdfUrl && <a className="download-button" href={pdfUrl} download={`${fileName.replace(/\.tex$/i, '')}.pdf`} aria-label="Download compiled PDF">↓</a>}
+            </div>
+          </div>
+          <div className="preview-status"><span className={`status-indicator ${compileStatus}`} />{compileStatus === 'success' ? 'PDF is up to date' : compileStatus === 'error' ? 'Fix the errors and compile again' : compileStatus === 'compiling' || compileStatus === 'loading' ? 'Compiling in your browser' : 'Waiting for first compile'}</div>
+          <div className="pdf-stage">
+            {pdfUrl ? <iframe title="Compiled LaTeX resume PDF" src={pdfUrl} /> : <div className="pdf-empty"><span className="pdf-page-icon">▤</span><b>Your PDF will appear here</b><small>Compile the LaTeX source to preview it.</small><button onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>Compile resume <span>Ctrl ↵</span></button></div>}
+          </div>
+          <div className="preview-footer"><span>PDFLATEX / XELATEX</span><span>COMPILED LOCALLY</span></div>
+        </section>
       </section>
       <footer className="page-footer"><span>DOWND <i>·</i> BUILT FOR THE DETAILS</span><span>LATEX FIRST, ALWAYS <span className="footer-heart">♥</span></span></footer>
     </main>
