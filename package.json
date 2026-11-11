@@ -16,6 +16,7 @@
     "@siglum/engine": "^0.2.2",
     "@uiw/react-codemirror": "^4.25.12",
     "@vitejs/plugin-react": "latest",
+    "pdfjs-dist": "^6.5.438",
     "react": "latest",
     "react-dom": "latest",
     "vite": "latest"

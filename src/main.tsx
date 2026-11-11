@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import CodeMirror from '@uiw/react-codemirror';
 import { StreamLanguage } from '@codemirror/language';
@@ -6,6 +6,8 @@ import { stex } from '@codemirror/legacy-modes/mode/stex';
 import { linter } from '@codemirror/lint';
 import { EditorView, highlightActiveLine } from '@codemirror/view';
 import './style.css';
+
+const LazyPdfViewer = lazy(() => import('./PdfViewer'));
 
 const STORAGE_KEY = 'tailor-tex-workspace-v1';
 type Skill = { name: string; aliases: string[]; group: string };
@@ -201,6 +203,7 @@ function App() {
   const [compileLog, setCompileLog] = useState('');
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<Uint8Array<ArrayBuffer> | null>(null);
   const [compiledSource, setCompiledSource] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -264,7 +267,9 @@ function App() {
           setDiagnostics(foundDiagnostics.filter((item) => item.severity === 'warning'));
           setCompileStatus('success');
           setCompiledSource(currentSource);
-          setPdfUrl(URL.createObjectURL(new Blob([new Uint8Array(result.pdf)], { type: 'application/pdf' })));
+          const bytes = result.pdf.slice();
+          setPdfData(bytes);
+          setPdfUrl(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })));
         } else {
           setDiagnostics(foundDiagnostics.length ? foundDiagnostics : [{ line: 0, message: result.error || 'Compilation failed. See the log for details.', severity: 'error' }]);
           setCompileStatus('error');
@@ -455,7 +460,7 @@ function App() {
           </div>
           <div className="preview-status"><span className={`status-indicator ${compileStatus}`} />{compileStatus === 'success' ? 'PDF is up to date' : compileStatus === 'error' ? 'Fix the errors and compile again' : compileStatus === 'compiling' || compileStatus === 'loading' ? 'Compiling in your browser' : 'Waiting for first compile'}</div>
           <div className="pdf-stage">
-            {pdfUrl ? <iframe title="Compiled LaTeX resume PDF" src={pdfUrl} /> : <div className="pdf-empty"><span className="pdf-page-icon">▤</span><b>Your PDF will appear here</b><small>Compile the LaTeX source to preview it.</small><button onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>Compile resume <span>Ctrl ↵</span></button></div>}
+            {pdfData ? <Suspense fallback={<div className="pdf-viewer-message">Opening PDF viewer…</div>}><LazyPdfViewer data={pdfData} /></Suspense> : <div className="pdf-empty"><span className="pdf-page-icon">▤</span><b>Your PDF will appear here</b><small>Compile the LaTeX source to preview it.</small><button onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>Compile resume <span>Ctrl ↵</span></button></div>}
           </div>
           <div className="preview-footer"><span>PDFLATEX / XELATEX</span><span>COMPILED LOCALLY</span></div>
         </section>
