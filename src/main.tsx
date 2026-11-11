@@ -12,15 +12,65 @@ const LazyPdfViewer = lazy(() => import('./PdfViewer'));
 const STORAGE_KEY = 'tailor-tex-workspace-v1';
 type Skill = { name: string; aliases: string[]; group: string };
 type SkillGroup = { id: string; title: string; icon: string; skills: [string, string[]][] };
-type SavedState = { code: string; required: string[]; overrides: Record<string, boolean>; customSkills?: Skill[]; fileName?: string; engine?: CompileEngine };
+type SavedState = { code: string; required: string[]; overrides: Record<string, boolean>; customSkills?: Skill[]; defaultCode?: string; defaultFileName?: string; fileName?: string; engine?: CompileEngine };
 type Diagnostic = { line: number; message: string; severity: 'error' | 'warning' | 'info' };
 type CompileStatus = 'idle' | 'loading' | 'compiling' | 'success' | 'error';
 type CompileEngine = 'pdflatex' | 'xelatex' | 'auto';
-const STARTER = `\\documentclass[letterpaper,10pt]{article}
-\\usepackage[margin=0.7in]{geometry}
+const STARTER = `\\documentclass[10pt,a4paper]{article}
+\\usepackage[margin=0.65in]{geometry}
+\\usepackage[T1]{fontenc}
+\\usepackage{lmodern}
+\\usepackage[hidelinks]{hyperref}
+\\usepackage{enumitem}
+\\usepackage{titlesec}
+\\pagestyle{empty}
+\\setlength{\\parindent}{0pt}
+\\setlength{\\parskip}{2pt}
+\\setlist[itemize]{leftmargin=*,nosep}
+\\titleformat{\\section}{\\large\\bfseries}{}{0em}{}[\\titlerule]
+\\titlespacing{\\section}{0pt}{9pt}{5pt}
+
 \\begin{document}
 
-% Paste or write your resume here.
+\\begin{center}
+  {\\LARGE \\textbf{Your Name}}\\\\
+  City, Country \\textbar\\
+  \\href{mailto:you@example.com}{you@example.com} \\textbar\\
+  \\href{https://www.linkedin.com/in/your-profile}{LinkedIn} \\textbar\\
+  \\href{https://github.com/your-username}{GitHub}
+\\end{center}
+
+\\section{Professional Summary}
+Write a short summary focused on your role, strengths, and relevant experience.
+
+\\section{Technical Skills}
+{\\small
+\\textbf{Programming Languages:} \\\\
+\\textbf{Frontend Development:} \\\\
+\\textbf{Backend Development:} \\\\
+\\textbf{Databases and Data:} \\\\
+\\textbf{Cloud and DevOps:} \\\\
+\\textbf{Testing and Tools:} \\\\
+}
+
+\\section{Experience}
+\\textbf{Job Title} \\hfill Month Year -- Present\\\\
+\\textit{Company Name} \\hfill City, Country
+\\begin{itemize}
+  \\item Describe an achievement and include its measurable result.
+  \\item Describe a project, your contribution, and the tools you used.
+\\end{itemize}
+
+\\section{Projects}
+\\textbf{Project Name} \\hfill \\href{https://github.com/your-username/project}{GitHub}\\\\
+Describe the project, what you built, and its impact.
+\\begin{itemize}
+  \\item Add a technical contribution or result with numbers where possible.
+\\end{itemize}
+
+\\section{Education}
+\\textbf{Degree or Program} \\hfill Graduation Year\\\\
+University Name \\hfill City, Country
 
 \\end{document}`;
 
@@ -315,9 +365,13 @@ function removeSkillFromCode(code: string, skillName: string, catalog: Skill[] =
 function readSavedState(): SavedState {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (saved && typeof saved.code === 'string') return saved;
+    if (saved && typeof saved.code === 'string') return {
+      ...saved,
+      defaultCode: typeof saved.defaultCode === 'string' ? saved.defaultCode : saved.code,
+      defaultFileName: typeof saved.defaultFileName === 'string' ? saved.defaultFileName : (saved.fileName || 'resume.tex'),
+    };
   } catch { /* Start with a clean local workspace if saved data is unreadable. */ }
-  return { code: STARTER, required: [], overrides: {}, fileName: 'resume.tex', engine: 'pdflatex' };
+  return { code: STARTER, defaultCode: STARTER, fileName: 'resume.tex', defaultFileName: 'resume.tex', required: [], overrides: {}, engine: 'pdflatex' };
 }
 
 function parseDiagnostics(log: string, fileName: string): Diagnostic[] {
@@ -346,10 +400,12 @@ function parseDiagnostics(log: string, fileName: string): Diagnostic[] {
 function App() {
   const [initial] = useState(readSavedState);
   const [code, setCode] = useState(initial.code);
+  const [defaultCode, setDefaultCode] = useState(initial.defaultCode || initial.code);
   const [required, setRequired] = useState<Set<string>>(new Set(initial.required || []));
   const [overrides, setOverrides] = useState(initial.overrides || {});
   const [customSkills, setCustomSkills] = useState<Skill[]>(initial.customSkills || []);
   const [fileName, setFileName] = useState(initial.fileName || 'resume.tex');
+  const [defaultFileName, setDefaultFileName] = useState(initial.defaultFileName || initial.fileName || 'resume.tex');
   const [compileEngine, setCompileEngine] = useState<CompileEngine>(initial.engine || 'pdflatex');
   const [query, setQuery] = useState('');
   const [jdText, setJdText] = useState('');
@@ -383,8 +439,8 @@ function App() {
   const applicableJdSkills = useMemo(() => [...jdSkills, ...newJdSkills], [jdSkills, newJdSkills]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, required: [...required], overrides, customSkills, fileName, engine: compileEngine }));
-  }, [code, required, overrides, customSkills, fileName, compileEngine]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, defaultCode, required: [...required], overrides, customSkills, fileName, defaultFileName, engine: compileEngine }));
+  }, [code, defaultCode, required, overrides, customSkills, fileName, defaultFileName, compileEngine]);
 
   useEffect(() => () => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -497,8 +553,18 @@ function App() {
     if (!file) return;
     const text = await file.text();
     setCode(text);
+    setDefaultCode(text);
     const baseName = file.name.replace(/\.[^.]+$/, '').trim().replace(/[^\w.-]+/g, '_') || 'resume';
     setFileName(`${baseName}.tex`);
+    setDefaultFileName(`${baseName}.tex`);
+    setOverrides({});
+  }
+
+  function resetToDefault() {
+    if (code !== defaultCode && !window.confirm('Reset the resume to its default source? This will discard the current edits.')) return;
+    setCode(defaultCode);
+    setFileName(defaultFileName);
+    setRequired(new Set());
     setOverrides({});
   }
 
@@ -612,6 +678,7 @@ function App() {
             <div className="editor-actions">
               <span className="file-label" title={fileName}><span className="file-dot" /> {fileName}</span>
               <input ref={uploadRef} className="file-input" type="file" accept=".tex,text/plain,application/x-tex" onChange={uploadResume} aria-label="Upload a LaTeX resume file" />
+              <button className="copy-button reset-button" onClick={resetToDefault} disabled={code === defaultCode} title={`Restore ${defaultFileName}`} aria-label="Reset resume code to default">Reset default <span aria-hidden="true">↺</span></button>
               <button className="copy-button upload-button" onClick={() => uploadRef.current?.click()}>Upload .tex <span aria-hidden="true">↑</span></button>
               <button className="copy-button" onClick={copyCode}>{copied ? 'Copied!' : 'Copy code'} <span aria-hidden="true">↗</span></button>
             </div>
