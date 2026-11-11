@@ -37,7 +37,7 @@ a { color: inherit; }
 .startup-screen p { margin: 18px 0 5px; font: 500 18px/1.35 "IBM Plex Serif", serif; }
 .startup-screen small { color: var(--secondary-ink); font-size: 12px; }
 @keyframes startup-sweep { from { transform: translateX(-100%); } to { transform: translateX(240%); } }
-.topbar { height: 60px; flex: 0 0 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--rule); background: var(--sheet); }
+.topbar { position: sticky; top: 0; z-index: 10; height: 60px; flex: 0 0 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--rule); background: var(--sheet); }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 3px; color: #f8fbf8; background: var(--accent); font: 600 15px/1 "IBM Plex Sans", sans-serif; letter-spacing: -.07em; }
 .brand-name { font: 600 17px/1 "IBM Plex Sans", sans-serif; letter-spacing: -.04em; }
