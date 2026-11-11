@@ -55,7 +55,14 @@ const editorTheme = EditorView.theme({
 });
 
 function normalize(value: string) {
-  return value.toLowerCase().replace(/\\textit\{|\\textbf\{|\\emph\{|[{}\\]/g, '').replace(/[^a-z0-9+#.]/g, '');
+  return value
+    .replace(/(^|[^\\])%.*$/gm, '$1 ')
+    .replace(/\\([{}%&#_$])/g, '$1')
+    .replace(/\\[a-zA-Z@]+\*?(?:\[[^\]]*\])?/g, ' ')
+    .replace(/[{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function escapeRegExp(value: string) {
@@ -71,7 +78,7 @@ function findSkillInText(text: string, skill: Skill) {
 }
 
 function getSkillsSectionRange(code: string): { start: number; end: number } | null {
-  const heading = /\\section\*?\s*\{\s*(?:technical\s+)?skills\s*\}/ig;
+  const heading = /\\section\*?\s*\{[^}]*\bskills\b[^}]*\}/ig;
   const match = heading.exec(code);
   if (!match) return null;
   const start = match.index + match[0].length;
