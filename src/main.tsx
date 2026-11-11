@@ -26,22 +26,52 @@ const STARTER = `\\documentclass[letterpaper,10pt]{article}
 
 const GROUPS: SkillGroup[] = [
   { id: 'frontend', title: 'Frontend', icon: '◧', skills: [
-    ['React', ['React.js']], ['TypeScript', ['TS']], ['JavaScript', ['JS', 'ECMAScript']], ['Next.js', ['NextJS']], ['Vue.js', ['Vue']], ['Angular', []], ['HTML', ['HTML5']], ['CSS', ['CSS3']], ['Tailwind CSS', ['Tailwind']], ['Sass', ['SCSS']], ['Accessibility', ['a11y', 'Web accessibility']], ['Redux', ['Redux Toolkit']],
+    ['React', ['React.js']], ['TypeScript', ['TS']], ['JavaScript', ['JS', 'ECMAScript']], ['Next.js', ['NextJS']], ['Vue.js', ['Vue']], ['Angular', ['AngularJS']], ['HTML', ['HTML5']], ['CSS', ['CSS3']], ['Tailwind CSS', ['Tailwind']], ['Sass', ['SCSS']], ['Accessibility', ['a11y', 'Web accessibility']], ['Redux', ['Redux Toolkit']],
+    ['Svelte', []], ['Nuxt', ['Nuxt.js']], ['Remix', ['Remix.run']], ['Astro', []], ['Vite', []], ['Webpack', []], ['Parcel', []], ['Rollup', []], ['Turbopack', []], ['jQuery', []], ['Ember.js', ['Ember']], ['Backbone.js', ['Backbone']], ['Gatsby', []], ['Gatsby.js', []], ['Gulp', []], ['Grunt', []], ['PostCSS', []], ['Less', ['LESS CSS']], ['Material UI', ['MUI']], ['Chakra UI', []], ['Ant Design', ['AntD']], ['shadcn/ui', ['shadcn']], ['Bootstrap', []], ['Bulma', []], ['Foundation CSS', []], ['Styled Components', ['styled-components']], ['Emotion', ['Emotion CSS']], ['CSS Modules', []], ['CSS-in-JS', []], ['Web Components', []], ['Web Accessibility', ['WCAG']], ['Storybook', []], ['TanStack Query', ['React Query']], ['TanStack Router', []], ['Zustand', []], ['MobX', []], ['Jotai', []], ['Recoil', []], ['RxJS', []], ['PWA', ['Progressive Web Apps']], ['WebAssembly', ['WASM']], ['Preact', []], ['SolidJS', ['Solid.js']], ['Qwik', []], ['Lit', ['LitElement']], ['Alpine.js', ['Alpine']], ['HTMX', ['Hypermedia']], ['Marko', []], ['UnoCSS', []], ['Windi CSS', ['WindiCSS']], ['Radix UI', ['Radix']], ['Mantine', []], ['PrimeReact', []], ['PrimeNG', []], ['React Hook Form', []], ['Formik', []], ['React Router', []], ['Vuex', []], ['Pinia', []], ['NgRx', []], ['Angular Material', []], ['Bootstrap', []], ['Recharts', []], ['D3.js', ['D3']], ['Highcharts', []], ['Three.js', ['ThreeJS']], ['Mapbox GL JS', ['Mapbox']], ['Leaflet', []], ['WebGL', []], ['Canvas API', ['HTML Canvas']],
+  ] },
+  { id: 'mobile', title: 'Mobile & Desktop', icon: '▣', skills: [
+    ['React Native', []], ['Expo', ['Expo Go']], ['Flutter', []], ['Dart', []], ['SwiftUI', []], ['UIKit', []], ['Jetpack Compose', []], ['Android SDK', []], ['iOS Development', ['iOS']], ['Xamarin', []], ['.NET MAUI', ['MAUI']], ['Ionic', []], ['Capacitor', []], ['NativeScript', []], ['Electron', []], ['Tauri', []], ['Kotlin Multiplatform', ['KMP']], ['Unity', []], ['Unreal Engine', ['Unreal']],
+  ] },
+  { id: 'languages', title: 'Programming Languages', icon: '⌘', skills: [
+    ['Python', []], ['Java', []], ['C#', ['C Sharp', 'C-Sharp']], ['Go', ['Golang']], ['Rust', []], ['Ruby', []], ['PHP', []], ['Kotlin', []], ['Swift', []], ['Scala', []], ['C++', ['CPP']], ['C', ['C language']], ['R', ['R language']], ['Objective-C', ['Objective C']], ['Elixir', []], ['Erlang', []], ['Clojure', []], ['F#', ['F Sharp']], ['Haskell', []], ['Julia', []], ['MATLAB', ['Matlab']], ['Perl', []], ['Lua', []], ['Groovy', []], ['Bash', ['Shell scripting']], ['PowerShell', ['Powershell']], ['Zig', []], ['Assembly', ['Assembly language']], ['Solidity', []], ['Fortran', []], ['COBOL', []], ['Ada', []], ['OCaml', []], ['Crystal', []], ['Nim', []], ['Visual Basic', ['VB.NET', 'VB']], ['Apex', ['Salesforce Apex']], ['SQL', ['Structured Query Language']], ['PL/SQL', ['PLSQL']], ['T-SQL', ['Transact-SQL']], ['HTML', ['HTML5']], ['CSS', ['CSS3']], ['JavaScript', ['JS', 'ECMAScript']], ['TypeScript', ['TS']],
   ] },
   { id: 'backend', title: 'Backend', icon: '⌘', skills: [
-    ['Node.js', ['NodeJS', 'Node']], ['Express.js', ['Express']], ['Python', []], ['Java', []], ['C#', ['C Sharp']], ['Go', ['Golang']], ['REST APIs', ['RESTful API', 'REST API']], ['GraphQL', []], ['Spring Boot', ['Spring']], ['Django', []], ['FastAPI', []], ['Microservices', ['Microservice architecture']],
+    ['Node.js', ['NodeJS', 'Node']], ['Express.js', ['Express']], ['REST APIs', ['RESTful API', 'REST API']], ['GraphQL', []], ['Spring Boot', ['Spring']], ['Django', []], ['FastAPI', []], ['Microservices', ['Microservice architecture']],
+    ['NestJS', ['Nest.js']], ['Fastify', []], ['Koa', ['Koa.js']], ['Hapi.js', ['Hapi']], ['AdonisJS', ['Adonis']], ['Bun', []], ['Deno', []], ['ASP.NET', ['ASP.NET Core', 'ASP.NET MVC']], ['.NET', ['Dotnet', 'Dot NET']], ['Entity Framework', ['EF Core']], ['Ruby on Rails', ['Rails']], ['Laravel', []], ['Symfony', []], ['CakePHP', []], ['CodeIgniter', []], ['Flask', []], ['Pyramid', []], ['Tornado', []], ['Litestar', []], ['Spring Framework', ['Spring MVC']], ['Quarkus', []], ['Micronaut', []], ['Jakarta EE', ['Java EE']], ['Dropwizard', []], ['Vert.x', ['Vertx']], ['Gin', ['Gin Gonic']], ['Fiber', ['Go Fiber']], ['Echo', ['Echo framework']], ['Chi', ['Go Chi']], ['Actix', ['Actix Web']], ['Axum', []], ['Rocket', ['Rocket.rs']], ['Phoenix', ['Phoenix Framework']], ['Plug', ['Elixir Plug']], ['Fiber (PHP)', []], ['WordPress', ['WordPress development']], ['Drupal', []], ['Magento', ['Adobe Commerce']], ['Shopify', ['Shopify development']], ['Contentful', []], ['Strapi', []], ['Directus', []], ['Payload CMS', ['Payload']], ['gRPC', []], ['SOAP', ['SOAP APIs']], ['WebSockets', ['WebSocket']], ['Server-Sent Events', ['SSE']], ['Webhooks', []], ['OpenAPI', ['Swagger']], ['AsyncAPI', []], ['OAuth', ['OAuth 2.0']], ['OpenID Connect', ['OIDC']], ['JWT', ['JSON Web Token']], ['SAML', []], ['Micro-frontends', ['Microfrontend']], ['Event-driven Architecture', ['Event driven']], ['Serverless', ['Serverless architecture']],
   ] },
   { id: 'data', title: 'Data & Storage', icon: '▤', skills: [
-    ['PostgreSQL', ['Postgres']], ['MySQL', []], ['MongoDB', ['Mongo']], ['Redis', []], ['SQLite', []], ['SQL', ['Structured Query Language']], ['Prisma', []], ['Elasticsearch', ['ElasticSearch']],
+    ['PostgreSQL', ['Postgres']], ['MySQL', []], ['MongoDB', ['Mongo']], ['Redis', []], ['SQLite', []], ['Prisma', []], ['Elasticsearch', ['ElasticSearch']],
+    ['Microsoft SQL Server', ['SQL Server', 'MSSQL']], ['Oracle Database', ['Oracle DB']], ['MariaDB', []], ['DynamoDB', ['Amazon DynamoDB']], ['Firestore', ['Cloud Firestore']], ['Firebase', []], ['Cassandra', ['Apache Cassandra']], ['Couchbase', []], ['CouchDB', []], ['Neo4j', []], ['Amazon Neptune', ['Neptune']], ['OpenSearch', ['AWS OpenSearch']], ['Solr', ['Apache Solr']], ['ClickHouse', []], ['CockroachDB', []], ['PlanetScale', []], ['Supabase', []], ['MongoDB Atlas', []], ['Amazon RDS', ['AWS RDS']], ['Amazon Aurora', ['Aurora DB']], ['Snowflake', []], ['BigQuery', ['Google BigQuery']], ['Amazon Redshift', ['Redshift']], ['Databricks', []], ['Delta Lake', ['Delta Lakehouse']], ['Apache Spark', ['Spark']], ['PySpark', []], ['Hadoop', ['Apache Hadoop']], ['Hive', ['Apache Hive']], ['Apache Flink', ['Flink']], ['Apache Beam', ['Beam']], ['Kafka', ['Apache Kafka']], ['Apache Pulsar', ['Pulsar']], ['RabbitMQ', []], ['NATS', ['NATS.io']], ['ActiveMQ', ['Apache ActiveMQ']], ['Amazon SQS', ['AWS SQS']], ['Amazon SNS', ['AWS SNS']], ['Apache Airflow', ['Airflow']], ['Dagster', []], ['Prefect', []], ['dbt', ['Data Build Tool']], ['Fivetran', []], ['Meltano', []], ['Informatica', []], ['Talend', []], ['Apache NiFi', ['NiFi']], ['Trino', ['PrestoSQL']], ['Presto', ['PrestoDB']], ['TimescaleDB', ['Timescale']], ['InfluxDB', []], ['Prometheus TSDB', []], ['Qdrant', []], ['Pinecone', []], ['Weaviate', []], ['Milvus', []], ['ChromaDB', ['Chroma']], ['LanceDB', []], ['Vector Databases', ['Vector database']], ['ETL', ['Extract Transform Load']], ['Data Warehousing', ['Data Warehouse']], ['Data Modeling', ['Dimensional Modeling']], ['Data Engineering', []], ['Data Governance', []], ['Data Quality', []], ['Data Visualization', []], ['Power BI', ['PowerBI']], ['Tableau', []], ['Looker', ['Looker Studio']], ['Apache Superset', ['Superset']], ['Metabase', []], ['Mode Analytics', ['Mode']],
+  ] },
+  { id: 'ai', title: 'AI & Machine Learning', icon: '✳', skills: [
+    ['Machine Learning', ['ML']], ['Deep Learning', []], ['Artificial Intelligence', ['AI']], ['Generative AI', ['GenAI']], ['Large Language Models', ['LLM', 'LLMs']], ['Natural Language Processing', ['NLP']], ['Computer Vision', []], ['Reinforcement Learning', []], ['TensorFlow', []], ['PyTorch', []], ['Keras', []], ['JAX', []], ['scikit-learn', ['sklearn']], ['XGBoost', []], ['LightGBM', []], ['CatBoost', []], ['Hugging Face', ['HuggingFace']], ['Transformers', ['Transformer models']], ['OpenAI API', ['OpenAI']], ['Anthropic API', ['Claude API']], ['Google Gemini API', ['Gemini API']], ['LangChain', []], ['LlamaIndex', ['Llama Index']], ['Haystack', ['deepset Haystack']], ['Semantic Kernel', []], ['RAG', ['Retrieval Augmented Generation']], ['Prompt Engineering', []], ['Fine-tuning', ['Model fine tuning']], ['ONNX', []], ['MLflow', []], ['Kubeflow', []], ['Weights & Biases', ['Weights and Biases', 'W&B']], ['Vertex AI', ['Google Vertex AI']], ['Amazon SageMaker', ['AWS SageMaker', 'SageMaker']], ['Azure Machine Learning', ['Azure ML']], ['Pandas', ['pandas']], ['NumPy', ['numpy']], ['SciPy', ['scipy']], ['Jupyter', ['Jupyter Notebook']], ['OpenCV', []], ['spaCy', []], ['NLTK', []], ['H2O.ai', ['H2O']], ['Ray', ['Ray Serve']], ['vLLM', []], ['Ollama', []], ['Vector Search', []], ['Model Evaluation', ['LLM evaluation']], ['MLOps', ['ML Ops']],
   ] },
   { id: 'cloud', title: 'Cloud & DevOps', icon: '☁', skills: [
     ['AWS', ['Amazon Web Services']], ['Azure', ['Microsoft Azure']], ['Google Cloud', ['GCP', 'Google Cloud Platform']], ['Docker', []], ['Kubernetes', ['K8s']], ['CI/CD', ['Continuous integration', 'Continuous delivery']], ['Git', []], ['Linux', []], ['Terraform', []], ['Vercel', []],
+    ['Amazon EC2', ['EC2']], ['Amazon S3', ['AWS S3', 'S3']], ['AWS Lambda', ['Amazon Lambda']], ['Amazon ECS', ['ECS']], ['Amazon EKS', ['EKS']], ['AWS Fargate', ['Fargate']], ['CloudFormation', ['AWS CloudFormation']], ['AWS CDK', ['CDK']], ['Azure Functions', []], ['Azure DevOps', []], ['Azure Kubernetes Service', ['AKS']], ['Azure Blob Storage', []], ['Azure SQL', []], ['Google Kubernetes Engine', ['GKE']], ['Google Cloud Run', ['Cloud Run']], ['Google Cloud Functions', ['Cloud Functions']], ['Google Cloud Storage', ['GCS']], ['Google Cloud Build', []], ['Heroku', []], ['Netlify', []], ['Cloudflare', []], ['DigitalOcean', []], ['Render', ['Render.com']], ['Fly.io', ['Fly']], ['Linode', ['Akamai Cloud']], ['OpenShift', ['Red Hat OpenShift']], ['VMware', ['vSphere']], ['OpenStack', []], ['Docker Compose', []], ['Podman', []], ['containerd', []], ['Helm', ['Helm charts']], ['Istio', []], ['Linkerd', []], ['Envoy', []], ['Argo CD', ['ArgoCD']], ['Flux CD', ['FluxCD']], ['Jenkins', []], ['GitLab CI/CD', ['GitLab CI']], ['CircleCI', []], ['Travis CI', ['Travis']], ['Buildkite', []], ['TeamCity', []], ['Bamboo', ['Atlassian Bamboo']], ['GitHub Actions', []], ['Ansible', []], ['Puppet', []], ['Chef', []], ['SaltStack', ['Salt']], ['Pulumi', []], ['Packer', ['HashiCorp Packer']], ['Vagrant', []], ['Terragrunt', []], ['Crossplane', []], ['Nix', ['NixOS']], ['Bash', ['Shell scripting']], ['PowerShell', []], ['Nginx', ['NGINX']], ['Apache HTTP Server', ['Apache']], ['Caddy', ['Caddy server']], ['HAProxy', []], ['Linux', ['Ubuntu', 'Debian', 'Red Hat Linux']], ['Unix', []], ['Windows Server', []], ['macOS', ['Mac OS']], ['Networking', ['TCP/IP', 'DNS']], ['Load Balancing', []], ['Site Reliability Engineering', ['SRE']], ['Platform Engineering', []], ['Infrastructure as Code', ['IaC']], ['Observability', []], ['Prometheus', []], ['Grafana', []], ['OpenTelemetry', ['OTel']], ['Datadog', []], ['New Relic', []], ['Splunk', []], ['ELK Stack', ['Elastic Stack']], ['Logstash', []], ['Kibana', []], ['Fluentd', []], ['Fluent Bit', []], ['Loki', ['Grafana Loki']], ['Sentry', []], ['PagerDuty', []], ['Opsgenie', []], ['Incident Management', []], ['Disaster Recovery', []],
+  ] },
+  { id: 'security', title: 'Security & Identity', icon: '⌑', skills: [
+    ['Application Security', ['AppSec']], ['Cybersecurity', ['Information Security']], ['OWASP', ['OWASP Top 10']], ['Secure Coding', []], ['Threat Modeling', []], ['Penetration Testing', ['Pen Testing']], ['SAST', ['Static Application Security Testing']], ['DAST', ['Dynamic Application Security Testing']], ['Software Composition Analysis', ['SCA']], ['Vulnerability Management', []], ['Snyk', []], ['SonarQube', ['Sonar']], ['Trivy', []], ['Dependabot', []], ['Vault', ['HashiCorp Vault']], ['Secrets Management', []], ['Identity and Access Management', ['IAM']], ['RBAC', ['Role Based Access Control']], ['ABAC', ['Attribute Based Access Control']], ['Zero Trust', []], ['Encryption', ['Cryptography']], ['TLS', ['SSL/TLS']], ['PKI', ['Public Key Infrastructure']], ['OAuth', ['OAuth 2.0']], ['OpenID Connect', ['OIDC']], ['SAML', []], ['JWT', ['JSON Web Token']], ['Auth0', []], ['Okta', []], ['Keycloak', []], ['LDAP', []], ['Active Directory', ['Microsoft Active Directory']], ['AWS IAM', []], ['Compliance', ['SOC 2', 'ISO 27001', 'GDPR']],
+  ] },
+  { id: 'specialty', title: 'Enterprise & Emerging Tech', icon: '✧', skills: [
+    ['Blockchain', ['Distributed Ledger']], ['Web3', ['Web 3']], ['Ethereum', ['Ethereum Virtual Machine', 'EVM']], ['Smart Contracts', []], ['Web3.js', ['Web3JS']], ['Ethers.js', ['Ethers']], ['Hardhat', []], ['Foundry', ['Foundry framework']], ['Truffle', ['Truffle Suite']], ['Hyperledger Fabric', ['Hyperledger']], ['IPFS', ['InterPlanetary File System']], ['Bitcoin', []], ['NFT', ['Non-fungible token']],
+    ['Internet of Things', ['IoT']], ['MQTT', []], ['Arduino', []], ['Raspberry Pi', ['Raspberry Pi OS']], ['ESP32', []], ['Embedded Systems', ['Embedded Software']], ['RTOS', ['Real-time Operating System']], ['FreeRTOS', []], ['Zephyr RTOS', ['Zephyr']], ['FPGA', []], ['Verilog', []], ['VHDL', []], ['CAN bus', ['CAN protocol']], ['Modbus', []], ['OPC UA', ['OPC Unified Architecture']],
+    ['SAP', ['SAP ERP']], ['SAP HANA', []], ['ABAP', []], ['Salesforce', ['Salesforce CRM']], ['Salesforce Lightning', ['Lightning Web Components', 'LWC']], ['ServiceNow', []], ['Workday', []], ['Microsoft Dynamics 365', ['Dynamics 365']], ['ERP Systems', ['Enterprise Resource Planning']], ['CRM Systems', ['Customer Relationship Management']], ['Mainframe', ['Mainframe Development']], ['IBM z/OS', ['z/OS']], ['JCL', ['Job Control Language']], ['IBM DB2', ['DB2']], ['CICS', []], ['VSAM', []], ['Mulesoft', ['MuleSoft']], ['Apache Camel', ['Camel']], ['BPMN', ['Business Process Model and Notation']],
   ] },
   { id: 'testing', title: 'Testing & Tools', icon: '⌁', skills: [
-    ['Jest', []], ['Cypress', []], ['Playwright', []], ['Pytest', ['pytest']], ['JUnit', []], ['GitHub Actions', []], ['Figma', []], ['Agile', ['Scrum']], ['Unit Testing', ['Unit tests']], ['Selenium', []],
+    ['Jest', []], ['Cypress', []], ['Playwright', []], ['Pytest', ['pytest']], ['JUnit', []], ['Unit Testing', ['Unit tests']], ['Selenium', []],
+    ['Vitest', []], ['Mocha', []], ['Chai', []], ['Jasmine', []], ['Testing Library', ['React Testing Library']], ['Enzyme', []], ['WebdriverIO', ['Webdriver IO']], ['Puppeteer', []], ['Cucumber', ['BDD']], ['Robot Framework', []], ['TestNG', []], ['Mockito', []], ['WireMock', []], ['Testcontainers', []], ['REST Assured', ['RestAssured']], ['Karate', ['Karate DSL']], ['Postman', []], ['Insomnia', []], ['Newman', []], ['k6', ['Grafana k6']], ['Apache JMeter', ['JMeter']], ['Gatling', []], ['Locust', []], ['Pact', ['Pact testing']], ['Contract Testing', []], ['Integration Testing', []], ['End-to-End Testing', ['E2E Testing']], ['Performance Testing', ['Load Testing']], ['Accessibility Testing', ['A11y Testing']], ['Visual Regression Testing', []], ['Mutation Testing', []], ['Test Automation', ['Automated Testing']], ['Quality Assurance', ['QA']], ['Snapshot Testing', []], ['Smoke Testing', []], ['Regression Testing', []], ['Exploratory Testing', []], ['Test Strategy', []],
+  ] },
+  { id: 'tools', title: 'Developer Tools & Workflow', icon: '⌁', skills: [
+    ['GitHub', []], ['GitLab', []], ['Bitbucket', []], ['Azure DevOps', []], ['GitHub Actions', []], ['Jenkins', []], ['Jira', ['Atlassian Jira']], ['Confluence', ['Atlassian Confluence']], ['Linear', ['Linear.app']], ['Trello', []], ['Notion', []], ['Figma', []], ['Agile', ['Scrum']], ['Kanban', []], ['Waterfall', []], ['Pair Programming', []], ['Code Review', []], ['Technical Documentation', []], ['Mentoring', ['Technical Mentoring']], ['Communication', ['Cross-functional collaboration']],
+    ['Visual Studio Code', ['VS Code', 'Vscode']], ['Visual Studio', ['VS']], ['IntelliJ IDEA', ['IntelliJ']], ['PyCharm', []], ['WebStorm', []], ['Rider', ['JetBrains Rider']], ['Eclipse IDE', ['Eclipse']], ['NetBeans', []], ['Android Studio', []], ['Xcode', []], ['Vim', []], ['Neovim', ['Nvim']], ['Emacs', []], ['Cursor', ['Cursor IDE']], ['JetBrains IDEs', ['JetBrains']],
+    ['Maven', ['Apache Maven']], ['Gradle', ['Gradle Build Tool']], ['npm', ['Node Package Manager']], ['Yarn', ['Yarn package manager']], ['pnpm', []], ['Bun', ['Bun runtime']], ['pip', ['pip package manager']], ['Poetry', ['Python Poetry']], ['uv', ['Astral uv']], ['Conda', ['Anaconda']], ['Composer', ['PHP Composer']], ['NuGet', []], ['Cargo', ['Rust Cargo']], ['Go modules', ['Go mod']], ['Make', ['GNU Make']], ['CMake', []], ['Bazel', []], ['Meson', []], ['MSBuild', []], ['Gradle Kotlin DSL', []],
+    ['Git', ['Version Control']], ['SVN', ['Subversion']], ['Perforce', ['Helix Core']], ['Mercurial', ['Hg']], ['Open Source', ['Open-source']], ['API Documentation', []], ['Technical Writing', []], ['Product Thinking', []], ['Stakeholder Management', []], ['Problem Solving', []], ['Teamwork', ['Collaboration']], ['Leadership', []], ['Time Management', []],
+  ] },
+  { id: 'architecture', title: 'Architecture & Concepts', icon: '◇', skills: [
+    ['System Design', ['Systems Design']], ['Software Architecture', []], ['Distributed Systems', ['Distributed Computing']], ['Microservices', ['Microservice architecture']], ['Monolithic Architecture', ['Monolith']], ['Event-driven Architecture', ['Event driven']], ['Domain-driven Design', ['DDD']], ['Clean Architecture', []], ['Hexagonal Architecture', ['Ports and Adapters']], ['REST', ['RESTful']], ['GraphQL', []], ['gRPC', []], ['API Design', []], ['API Gateway', ['API Management']], ['Design Patterns', ['Software Design Patterns']], ['Object-oriented Programming', ['OOP']], ['Functional Programming', []], ['Data Structures', []], ['Algorithms', ['Data Structures and Algorithms', 'DSA']], ['Concurrency', ['Multithreading']], ['Parallel Computing', []], ['Caching', ['Cache design']], ['Message Queues', ['Message Queue']], ['Event Sourcing', []], ['CQRS', []], ['Scalability', ['Scalable systems']], ['High Availability', ['HA']], ['Fault Tolerance', []], ['Performance Optimization', ['Performance Tuning']], ['Low-latency Systems', []], ['API Security', []], ['Multi-tenant Architecture', ['Multitenancy']], ['Design Systems', []], ['Technical Leadership', ['Engineering Leadership']], ['Product Development', []],
   ] },
 ];
-const ALL_SKILLS = GROUPS.flatMap((group) => group.skills.map(([name, aliases]) => ({ name, aliases, group: group.id })));
 const EXTRA_TECHNOLOGIES: [string, string, string[]][] = [
   ['Rust', 'backend', []], ['Ruby', 'backend', []], ['PHP', 'backend', []], ['Kotlin', 'backend', []], ['Swift', 'backend', []], ['Scala', 'backend', []], ['Dart', 'backend', []], ['C++', 'backend', []], ['.NET', 'backend', ['dotnet']],
   ['Svelte', 'frontend', []], ['Nuxt', 'frontend', ['Nuxt.js']], ['Remix', 'frontend', ['Remix.run']], ['Astro', 'frontend', []], ['Vite', 'frontend', []], ['Webpack', 'frontend', []], ['NestJS', 'backend', ['Nest.js']], ['Flask', 'backend', []], ['Laravel', 'backend', []], ['Ruby on Rails', 'backend', ['Rails']], ['ASP.NET', 'backend', []], ['Hibernate', 'backend', []],
@@ -50,6 +80,12 @@ const EXTRA_TECHNOLOGIES: [string, string, string[]][] = [
   ['gRPC', 'backend', []], ['OAuth', 'backend', ['OAuth 2.0']], ['JWT', 'backend', ['JSON Web Token']], ['WebSockets', 'backend', ['WebSocket']], ['Vitest', 'testing', []], ['Mocha', 'testing', []], ['RSpec', 'testing', []], ['Postman', 'testing', []], ['OpenAPI', 'backend', ['Swagger']],
   ['SwiftUI', 'frontend', []], ['Flutter', 'frontend', []], ['React Native', 'frontend', []], ['Unity', 'backend', []], ['Unreal Engine', 'backend', ['Unreal']],
 ];
+const BASE_SKILLS = GROUPS.flatMap((group) => group.skills.map(([name, aliases]) => ({ name: name.trim(), aliases, group: group.id })));
+const BASE_SKILL_NAMES = new Set(BASE_SKILLS.map((skill) => skill.name.toLowerCase()));
+const ALL_SKILLS = [
+  ...BASE_SKILLS,
+  ...EXTRA_TECHNOLOGIES.filter(([name]) => !BASE_SKILL_NAMES.has(name.toLowerCase())).map(([name, group, aliases]) => ({ name, group, aliases })),
+].filter((skill, index, all) => all.findIndex((candidate) => candidate.name.toLowerCase() === skill.name.toLowerCase()) === index);
 const START = '% tailor.tex:skills:start';
 const END = '% tailor.tex:skills:end';
 const latexLanguage = StreamLanguage.define(stex);
@@ -86,6 +122,9 @@ function escapeRegExp(value: string) {
 }
 
 function findSkillInText(text: string, skill: Skill) {
+  if (skill.name === 'Go' && !/\b(?:Go|Golang)\b/.test(text)) return false;
+  if (skill.name === 'C' && !/(^|[^A-Za-z0-9])C(?=$|[^A-Za-z0-9+#])/m.test(text)) return false;
+  if (skill.name === 'R' && !/(^|[^A-Za-z0-9])R(?=$|[^A-Za-z0-9])/m.test(text)) return false;
   const normalizedText = normalize(text);
   return [skill.name, ...skill.aliases].some((term) => {
     const normalizedTerm = normalize(term);
@@ -95,6 +134,9 @@ function findSkillInText(text: string, skill: Skill) {
 }
 
 function findSkillInPlainText(text: string, skill: Skill) {
+  if (skill.name === 'Go' && !/\b(?:Go|Golang)\b/.test(text)) return false;
+  if (skill.name === 'C' && !/(^|[^A-Za-z0-9])C(?=$|[^A-Za-z0-9+#])/m.test(text)) return false;
+  if (skill.name === 'R' && !/(^|[^A-Za-z0-9])R(?=$|[^A-Za-z0-9])/m.test(text)) return false;
   const normalizedText = text.toLowerCase().replace(/\s+/g, ' ');
   return [skill.name, ...skill.aliases].some((term) => {
     const normalizedTerm = term.toLowerCase().trim();
@@ -113,7 +155,12 @@ function extractUnlistedTechnologies(text: string, catalog: Skill[]): Skill[] {
 function inferSkillGroup(name: string) {
   const value = name.toLowerCase();
   if (/react|vue|angular|svelte|frontend|front.end|css|html|ui|web|tailwind|flutter|swiftui/i.test(value)) return 'frontend';
+  if (/blockchain|web3|ethereum|solidity|smart contract|bitcoin|nft|iot|embedded|arduino|raspberry|fpga|verilog|vhdl|sap|salesforce|servicenow|workday|mainframe|cobol|abap/i.test(value)) return 'specialty';
+  if (/swift|kotlin|flutter|react native|ios|android/i.test(value)) return 'mobile';
   if (/sql|database|data|redis|mongo|postgres|kafka|spark|warehouse|storage/i.test(value)) return 'data';
+  if (/machine learning|artificial intelligence|\bai\b|\bml\b|llm|tensorflow|pytorch|langchain|openai/i.test(value)) return 'ai';
+  if (/security|oauth|jwt|saml|identity|authentication|encryption|owasp|vault/i.test(value)) return 'security';
+  if (/ide|vscode|visual studio|intellij|maven|gradle|npm|yarn|jira|confluence|github|gitlab|bitbucket|figma|notion|trello|makefile|cmake/i.test(value)) return 'tools';
   if (/aws|azure|cloud|docker|kubernetes|devops|linux|terraform|jenkins|grafana|ansible/i.test(value)) return 'cloud';
   if (/test|jest|cypress|playwright|pytest|selenium|postman/i.test(value)) return 'testing';
   return 'backend';
@@ -137,7 +184,7 @@ function scanSkills(code: string, catalog: Skill[] = ALL_SKILLS): Set<string> {
 }
 
 function skillSectionFor(skillName: string, catalog: Skill[] = ALL_SKILLS) {
-  if (['Java', 'JavaScript', 'TypeScript', 'Python', 'C#', 'Go'].includes(skillName)) return 'language';
+  if (['Java', 'JavaScript', 'TypeScript', 'Python', 'C#', 'Go', 'Rust', 'Ruby', 'PHP', 'Kotlin', 'Swift', 'Scala', 'C++', 'C', 'R', 'Objective-C', 'Elixir', 'Erlang', 'Clojure', 'F#', 'Haskell', 'Julia', 'MATLAB', 'Perl', 'Lua', 'Groovy', 'Zig', 'Assembly', 'Solidity'].includes(skillName)) return 'languages';
   if (skillName === 'SQL') return 'data';
   return catalog.find((skill) => skill.name === skillName)?.group || 'tools';
 }
@@ -146,29 +193,30 @@ function headingMatchesSkill(heading: string, skillName: string, catalog: Skill[
   const value = normalize(heading);
   const target = skillSectionFor(skillName, catalog);
   const aliases: Record<string, string[]> = {
-    language: ['programming language', 'languages', 'language'],
+    languages: ['programming language', 'languages', 'language'],
     frontend: ['frontend', 'front end', 'ui', 'web development'],
+    mobile: ['mobile', 'ios', 'android', 'desktop', 'cross-platform'],
     backend: ['backend', 'back end', 'server side'],
     data: ['database', 'data', 'storage'],
+    ai: ['ai', 'machine learning', 'ml', 'artificial intelligence', 'data science'],
     cloud: ['devops', 'developer tools', 'cloud', 'infrastructure', 'tools'],
+    security: ['security', 'identity', 'authentication', 'authorization'],
     testing: ['testing', 'test', 'qa', 'quality assurance'],
+    architecture: ['architecture', 'concepts', 'system design', 'apis', 'api design'],
     tools: ['tools', 'technical skills', 'skills'],
     custom: ['additional skills', 'other skills', 'tools', 'technical skills'],
+    specialty: ['enterprise', 'emerging', 'blockchain', 'embedded', 'iot', 'mainframe'],
   };
-  const matches = (terms: string[]) => terms.some((term) => value.includes(term));
-  if (target === 'data' && matches(aliases.data)) return true;
-  if (target === 'language' && matches(aliases.language)) return true;
-  if (target === 'frontend' && matches(aliases.frontend)) return true;
-  if (target === 'backend' && matches(aliases.backend)) return true;
-  if (target === 'cloud' && matches(aliases.cloud)) return true;
-  if (target === 'testing' && matches(aliases.testing)) return true;
-  return target === 'custom' ? matches(aliases.custom) : target === 'tools' && matches(aliases.tools);
+  const matches = (terms: string[]) => terms.some((term) => term.length <= 3
+    ? new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}(?=$|[^a-z0-9])`).test(value)
+    : value.includes(term));
+  return matches(aliases[target] || []);
 }
 
 function defaultSkillHeading(skillName: string, catalog: Skill[] = ALL_SKILLS) {
   const headings: Record<string, string> = {
-    language: 'Programming Languages', frontend: 'Frontend Development', backend: 'Backend Development',
-    data: 'Databases and Data', cloud: 'Developer Tools and DevOps', testing: 'Testing and Tools', tools: 'Technical Skills', custom: 'Additional Skills',
+    languages: 'Programming Languages', frontend: 'Frontend Development', mobile: 'Mobile Development', backend: 'Backend Development',
+    data: 'Databases and Data', ai: 'AI and Machine Learning', cloud: 'Developer Tools and DevOps', security: 'Security', testing: 'Testing and Tools', architecture: 'Architecture and APIs', tools: 'Developer Tools and Workflow', specialty: 'Enterprise and Emerging Technologies', custom: 'Additional Skills',
   };
   return headings[skillSectionFor(skillName, catalog)] || 'Additional Skills';
 }
@@ -322,7 +370,10 @@ function App() {
   const compilerRef = useRef<import('@siglum/engine').SiglumCompiler | null>(null);
   const queuedSourceRef = useRef<string | null>(null);
   const isCompilingRef = useRef(false);
-  const skillCatalog = useMemo(() => [...ALL_SKILLS, ...customSkills], [customSkills]);
+  const skillCatalog = useMemo(() => {
+    const builtInNames = new Set(ALL_SKILLS.map((skill) => skill.name.toLowerCase()));
+    return [...ALL_SKILLS, ...customSkills.filter((skill) => !builtInNames.has(skill.name.toLowerCase()))];
+  }, [customSkills]);
   const detected = useMemo(() => scanSkills(code, skillCatalog), [code, skillCatalog]);
   const inResume = (name: string): boolean => Object.hasOwn(overrides, name) ? overrides[name] : detected.has(name);
   const activeCount = skillCatalog.filter((skill) => inResume(skill.name)).length;
@@ -522,6 +573,7 @@ function App() {
     ...group,
     skills: [
       ...group.skills.map(([name, aliases]) => ({ name, aliases, group: group.id })),
+      ...ALL_SKILLS.filter((skill) => skill.group === group.id && !group.skills.some(([name]) => name.trim().toLowerCase() === skill.name.toLowerCase())),
       ...customSkills.filter((skill) => skill.group === group.id),
     ]
       .filter((skill) => !query || `${skill.name} ${skill.aliases.join(' ')}`.toLowerCase().includes(query.toLowerCase())),
