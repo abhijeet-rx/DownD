@@ -697,9 +697,9 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="downD home">
+        <a className="brand" href="#top" aria-label="DownD home">
           <span className="brand-mark" aria-hidden="true">dD</span>
-          <span className="brand-name">downD</span>
+          <span className="brand-name">DownD</span>
         </a>
         <div className="topbar-right">
           <span className={`save-state ${saveStatus}`} aria-live="polite"><span className="save-state-mark" />{saveStatus === 'error' ? 'Could not save locally' : saveStatus === 'saving' ? 'Saving on this device' : 'Saved on this device'}</span>
@@ -824,7 +824,7 @@ function App() {
           </div>
         </section>
       </div>}
-      <footer className="page-footer"><span>downD · LaTeX resume workspace</span><span>Resume source stays in this browser. Terms and Privacy pages are not published yet.</span></footer>
+      <footer className="page-footer"><span>DownD · LaTeX resume workspace</span><span>Resume source stays in this browser. Terms and Privacy pages are not published yet.</span></footer>
     </main>
   );
 }

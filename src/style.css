@@ -62,9 +62,9 @@ a { color: inherit; }
 .editor-mode { font: 500 11px/1 "IBM Plex Sans", sans-serif; }
 .auto-compile { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .auto-compile input { accent-color: var(--accent); }
-.editor-wrap { min-height: 300px; flex: 1 1 440px; overflow: hidden; background: #fff; }
-.editor-wrap .cm-editor { height: 100%; color: #25352b; font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
-.editor-wrap .cm-scroller { overflow: auto; }
+.editor-wrap { position: relative; min-height: 0; height: 1px; flex: 1 1 440px; overflow: hidden; background: #fff; }
+.editor-wrap .cm-editor { height: 100%; min-height: 0; color: #25352b; font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.editor-wrap .cm-scroller { height: 100%; overflow: auto !important; overscroll-behavior: contain; }
 .editor-wrap .cm-gutters { background: #f2f5f2; color: #7b887e; border-right: 1px solid #dce4dd; }
 .editor-wrap .cm-activeLine, .editor-wrap .cm-activeLineGutter { background: #f0f5f1; }
 .editor-wrap .cm-focused { outline: none; }
