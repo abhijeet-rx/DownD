@@ -86,6 +86,14 @@ function findSkillInText(text: string, skill: Skill) {
   });
 }
 
+function findSkillInPlainText(text: string, skill: Skill) {
+  const normalizedText = text.toLowerCase().replace(/\s+/g, ' ');
+  return [skill.name, ...skill.aliases].some((term) => {
+    const normalizedTerm = term.toLowerCase().trim();
+    return normalizedTerm && new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedTerm)}(?=$|[^a-z0-9])`, 'i').test(normalizedText);
+  });
+}
+
 function getSkillsSectionRange(code: string): { start: number; end: number } | null {
   const heading = /\\section\*?\s*\{[^}]*\bskills\b[^}]*\}/ig;
   const match = heading.exec(code);
@@ -269,6 +277,8 @@ function App() {
   const [fileName, setFileName] = useState(initial.fileName || 'resume.tex');
   const [compileEngine, setCompileEngine] = useState<CompileEngine>(initial.engine || 'pdflatex');
   const [query, setQuery] = useState('');
+  const [jdText, setJdText] = useState('');
+  const [jdFeedback, setJdFeedback] = useState('');
   const [copied, setCopied] = useState(false);
   const [autoCompile, setAutoCompile] = useState(true);
   const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
@@ -287,6 +297,7 @@ function App() {
   const inResume = (name: string): boolean => Object.hasOwn(overrides, name) ? overrides[name] : detected.has(name);
   const activeCount = ALL_SKILLS.filter((skill) => inResume(skill.name)).length;
   const requiredCount = required.size;
+  const jdSkills = useMemo(() => ALL_SKILLS.filter((skill) => jdText && findSkillInPlainText(jdText, skill)), [jdText]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, required: [...required], overrides, fileName, engine: compileEngine }));
@@ -418,6 +429,20 @@ function App() {
     });
   }
 
+  function applyJobDescription() {
+    if (!jdSkills.length) {
+      setJdFeedback('No catalog skills found. Try including technology names such as React, Java, or Docker.');
+      return;
+    }
+    const found = jdSkills.map((skill) => skill.name);
+    const alreadyInResume = scanSkills(code);
+    const addedCount = found.filter((name) => !alreadyInResume.has(name)).length;
+    setCode((current) => jdSkills.reduce((next, skill) => scanSkills(next).has(skill.name) ? next : addSkillToCode(next, skill.name), current));
+    setRequired(new Set(found));
+    setOverrides((current) => ({ ...current, ...Object.fromEntries(found.map((name) => [name, true])) }));
+    setJdFeedback(`Found ${found.length} ${found.length === 1 ? 'skill' : 'skills'}; added ${addedCount} to your resume.`);
+  }
+
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(code);
@@ -462,6 +487,15 @@ function App() {
           <div className="panel-heading skills-heading">
             <div className="heading-title"><span className="section-icon skills-icon">✳</span><div><h2>Skills library</h2><span className="subheading">Pick what the role calls for</span></div></div>
             <button className="more-button" aria-label="Skill library information" title="Select a skill to add or remove it from your resume. Use the JD toggle to mark what the role requires.">···</button>
+          </div>
+          <div className="jd-matcher">
+            <label htmlFor="jd-text">PASTE JOB DESCRIPTION</label>
+            <textarea id="jd-text" value={jdText} onChange={(event) => { setJdText(event.target.value); setJdFeedback(''); }} placeholder="Paste the job description here…" rows={3} />
+            <div className="jd-matcher-actions">
+              <span>{jdSkills.length ? `${jdSkills.length} catalog ${jdSkills.length === 1 ? 'skill' : 'skills'} detected` : 'Skills are detected from the library'}</span>
+              <button onClick={applyJobDescription} disabled={!jdSkills.length}>Match &amp; add</button>
+            </div>
+            {jdFeedback && <p role="status">{jdFeedback}</p>}
           </div>
           <div className="stats-row">
             <div className="stat-card"><span className="stat-label">IN YOUR RESUME</span><div><strong>{activeCount.toString().padStart(2, '0')}</strong><span className="stat-caption">skills</span></div></div>
