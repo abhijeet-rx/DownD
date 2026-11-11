@@ -407,6 +407,9 @@ function App() {
   const [fileName, setFileName] = useState(initial.fileName || 'resume.tex');
   const [defaultFileName, setDefaultFileName] = useState(initial.defaultFileName || initial.fileName || 'resume.tex');
   const [compileEngine, setCompileEngine] = useState<CompileEngine>(initial.engine || 'pdflatex');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [consoleExpanded, setConsoleExpanded] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<'editor' | 'preview'>('editor');
   const [query, setQuery] = useState('');
   const [jdText, setJdText] = useState('');
   const [jdFeedback, setJdFeedback] = useState('');
@@ -421,6 +424,11 @@ function App() {
   const [pdfData, setPdfData] = useState<Uint8Array<ArrayBuffer> | null>(null);
   const [compiledSource, setCompiledSource] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const jobDescriptionRef = useRef<HTMLTextAreaElement>(null);
+  const jobMatcherRef = useRef<HTMLElement>(null);
+  const openMatcherButtonRef = useRef<HTMLButtonElement>(null);
+  const modalWasOpenRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const compilerRef = useRef<import('@siglum/engine').SiglumCompiler | null>(null);
@@ -439,14 +447,26 @@ function App() {
   const applicableJdSkills = useMemo(() => [...jdSkills, ...newJdSkills], [jdSkills, newJdSkills]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, defaultCode, required: [...required], overrides, customSkills, fileName, defaultFileName, engine: compileEngine }));
+    setSaveStatus('saving');
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, defaultCode, required: [...required], overrides, customSkills, fileName, defaultFileName, engine: compileEngine }));
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = window.setTimeout(() => setSaveStatus('saved'), 180);
+    } catch {
+      setSaveStatus('error');
+    }
   }, [code, defaultCode, required, overrides, customSkills, fileName, defaultFileName, compileEngine]);
+
+  useEffect(() => () => {
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+  }, []);
 
   useEffect(() => () => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
   }, [pdfUrl]);
 
   const compileSource = useCallback(async (source: string) => {
+    setConsoleExpanded(true);
     queuedSourceRef.current = source;
     if (isCompilingRef.current) return;
     isCompilingRef.current = true;
@@ -525,11 +545,35 @@ function App() {
   }, [code, compileSource, skillModalOpen]);
 
   useEffect(() => {
-    if (!skillModalOpen) return;
+    if (!skillModalOpen) {
+      if (modalWasOpenRef.current) openMatcherButtonRef.current?.focus();
+      modalWasOpenRef.current = false;
+      return;
+    }
+    modalWasOpenRef.current = true;
     const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSkillModalOpen(false); };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSkillModalOpen(false);
+      }
+      if (event.key !== 'Tab') return;
+      const dialog = jobMatcherRef.current;
+      const focusable = dialog?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', closeOnEscape);
+    requestAnimationFrame(() => jobDescriptionRef.current?.focus());
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', closeOnEscape);
@@ -654,36 +698,42 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#top" aria-label="downD home">
-          <span className="brand-mark">d<span>D</span></span>
+          <span className="brand-mark" aria-hidden="true">dD</span>
           <span className="brand-name">downD</span>
         </a>
         <div className="topbar-right">
-          <span className="privacy-pill"><span className="privacy-dot" /> SAVED IN THIS BROWSER</span>
+          <span className={`save-state ${saveStatus}`} aria-live="polite"><span className="save-state-mark" />{saveStatus === 'error' ? 'Could not save locally' : saveStatus === 'saving' ? 'Saving on this device' : 'Saved on this device'}</span>
         </div>
       </header>
 
       <section className="intro" id="top">
         <div>
-          <div className="eyebrow"><span className="eyebrow-line" /> RESUME WORKSPACE</div>
-          <h1>Make your skills <span>fit the role.</span></h1>
-          <p>Shape your resume in LaTeX. Tune your skills for the job, one click at a time.</p>
+          <h1>Tailor your LaTeX resume to the job.</h1>
+          <p>Edit the source, match job skills, and review the compiled resume.</p>
         </div>
-        <div className="intro-actions"><div className="intro-meta"><span className="sparkle">✳</span><span>No account needed<br /><b>Your code stays on this device</b></span></div><button className="jd-open-button" onClick={() => setSkillModalOpen(true)}>Tailor to a job description <span>↗</span></button></div>
+        <div className="intro-actions">
+          <span className="intro-meta">Your resume stays in this browser</span>
+          <button ref={openMatcherButtonRef} className="jd-open-button" onClick={() => setSkillModalOpen(true)}>Paste a job description</button>
+        </div>
       </section>
 
-      <section className="workspace" aria-label="Resume tailoring workspace">
-        <div className="editor-panel panel">
+      <div className="mobile-workbench-tabs" role="tablist" aria-label="Resume workbench">
+        <button id="editor-tab" role="tab" aria-selected={mobilePanel === 'editor'} aria-controls="editor-panel" className={mobilePanel === 'editor' ? 'selected' : ''} onClick={() => setMobilePanel('editor')}>LaTeX source</button>
+        <button id="preview-tab" role="tab" aria-selected={mobilePanel === 'preview'} aria-controls="preview-panel" className={mobilePanel === 'preview' ? 'selected' : ''} onClick={() => setMobilePanel('preview')}>PDF preview</button>
+      </div>
+
+      <section className={`workspace ${mobilePanel === 'preview' ? 'mobile-show-preview' : 'mobile-show-editor'}`} aria-label="Resume workspace">
+        <div className="editor-panel panel" id="editor-panel" role="tabpanel" aria-labelledby="editor-tab">
           <div className="panel-heading editor-heading">
-            <div className="heading-title"><span className="section-icon code-icon">{`</>`}</span><div><h2>Resume source</h2><span className="subheading">Edit your LaTeX directly</span></div></div>
+            <div className="heading-title"><div><h2>LaTeX source</h2><span className="subheading" title={fileName}>{fileName}</span></div></div>
             <div className="editor-actions">
-              <span className="file-label" title={fileName}><span className="file-dot" /> {fileName}</span>
               <input ref={uploadRef} className="file-input" type="file" accept=".tex,text/plain,application/x-tex" onChange={uploadResume} aria-label="Upload a LaTeX resume file" />
-              <button className="copy-button reset-button" onClick={resetToDefault} disabled={code === defaultCode} title={`Restore ${defaultFileName}`} aria-label="Reset resume code to default">Reset default <span aria-hidden="true">↺</span></button>
-              <button className="copy-button upload-button" onClick={() => uploadRef.current?.click()}>Upload .tex <span aria-hidden="true">↑</span></button>
-              <button className="copy-button" onClick={copyCode}>{copied ? 'Copied!' : 'Copy code'} <span aria-hidden="true">↗</span></button>
+              <button className="copy-button reset-button" onClick={resetToDefault} disabled={code === defaultCode} title={`Restore ${defaultFileName}`}>Reset default</button>
+              <button className="copy-button upload-button" onClick={() => uploadRef.current?.click()}>Upload .tex</button>
+              <button className="copy-button" onClick={copyCode}>{copied ? 'Copied' : 'Copy code'}</button>
             </div>
           </div>
-          <div className="editor-toolbar"><span><span className="live-dot" /> LIVE EDITOR</span><label className="auto-compile"><input type="checkbox" checked={autoCompile} onChange={(event) => setAutoCompile(event.target.checked)} /> Auto compile</label></div>
+          <div className="editor-toolbar"><span className="editor-mode">LaTeX source</span><label className="auto-compile"><input type="checkbox" checked={autoCompile} onChange={(event) => setAutoCompile(event.target.checked)} /> Compile as I edit</label></div>
           <div className="editor-wrap">
             <CodeMirror
               value={code}
@@ -695,69 +745,77 @@ function App() {
               onCreateEditor={(view) => { editorViewRef.current = view; }}
             />
           </div>
-          <div className="editor-footer"><span><i className="check-icon">✓</i> Saved on this device</span><span>{code.split('\n').length} lines <b>·</b> {code.length} chars</span></div>
+          <div className="editor-footer"><span>{code.split('\n').length} lines</span><span>{code.length} characters</span></div>
           <div className="compile-console">
-            <div className="console-header"><span>COMPILE OUTPUT</span><div className="compile-controls"><label className="engine-select-label" htmlFor="compile-engine">ENGINE</label><select id="compile-engine" className="engine-select" value={compileEngine} onChange={(event) => setCompileEngine(event.target.value as CompileEngine)}><option value="pdflatex">pdfLaTeX</option><option value="xelatex">XeLaTeX</option><option value="auto">Auto</option></select><button className="compile-button" onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>{compileStatus === 'loading' ? 'Loading engine…' : compileStatus === 'compiling' ? 'Compiling…' : 'Compile'} <span>Ctrl ↵</span></button></div></div>
-            {diagnostics.length ? <div className="diagnostics-list">
-              {diagnostics.slice(0, 5).map((item, index) => <button className={`diagnostic-row ${item.severity}`} key={`${item.line}-${index}`} onClick={() => jumpToLine(item.line)} disabled={item.line < 1}>
-                <span className="diagnostic-symbol">{item.severity === 'warning' ? '!' : '×'}</span><span className="diagnostic-message">{item.message}</span>{item.line > 0 && <span className="diagnostic-line">Ln {item.line}</span>}
-              </button>)}
-            </div> : <div className={`compile-summary ${compileStatus}`}>{compileStatus === 'success' ? '✓  No compile errors' : compileStatus === 'loading' ? 'Preparing the local LaTeX engine…' : compileStatus === 'compiling' ? 'Building your PDF…' : compileStatus === 'error' ? 'Compilation failed. Open the log for details.' : 'Ready to compile your resume.'}</div>}
-            {compileLog && <details className="raw-log"><summary>View full compiler log</summary><pre>{compileLog}</pre></details>}
+            <div className="console-header">
+              <div className="console-title-wrap">
+                <button className="console-toggle" onClick={() => setConsoleExpanded((expanded) => !expanded)} aria-expanded={consoleExpanded} aria-controls={consoleExpanded ? 'compile-details' : undefined}>Compile output <span aria-hidden="true">{consoleExpanded ? '−' : '+'}</span></button>
+                <span className={`compile-summary ${compileStatus}`} role="status">{compileStatus === 'success' ? 'No compile errors' : compileStatus === 'loading' ? 'Preparing compiler' : compileStatus === 'compiling' ? 'Compiling resume' : compileStatus === 'error' ? 'Compilation failed' : 'Ready to compile'}</span>
+              </div>
+              <div className="compile-controls"><label className="engine-select-label" htmlFor="compile-engine">Engine</label><select id="compile-engine" className="engine-select" value={compileEngine} onChange={(event) => setCompileEngine(event.target.value as CompileEngine)}><option value="pdflatex">pdfLaTeX</option><option value="xelatex">XeLaTeX</option><option value="auto">Auto</option></select><button className="compile-button" onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>{compileStatus === 'loading' ? 'Preparing' : compileStatus === 'compiling' ? 'Compiling' : 'Compile'}<span>Ctrl + Enter</span></button></div>
+            </div>
+            {consoleExpanded && <div className="compile-console-body" id="compile-details">
+              {diagnostics.length ? <div className="diagnostics-list">
+                {diagnostics.slice(0, 5).map((item, index) => <button className={`diagnostic-row ${item.severity}`} key={`${item.line}-${index}`} onClick={() => jumpToLine(item.line)} disabled={item.line < 1}>
+                  <span className="diagnostic-symbol" aria-hidden="true">{item.severity === 'warning' ? '!' : '×'}</span><span className="diagnostic-message">{item.message}</span>{item.line > 0 && <span className="diagnostic-line">Line {item.line}</span>}
+                </button>)}
+              </div> : <p className="compile-empty">{compileStatus === 'success' ? 'The latest source compiled successfully.' : compileStatus === 'loading' ? 'Preparing the local LaTeX engine.' : compileStatus === 'compiling' ? 'Building the PDF from your current source.' : 'Compiler messages will appear here.'}</p>}
+              {compileLog && <details className="raw-log"><summary>View full compiler log</summary><pre>{compileLog}</pre></details>}
+            </div>}
           </div>
         </div>
 
-        <section className="preview-panel panel">
+        <section className="preview-panel panel" id="preview-panel" role="tabpanel" aria-labelledby="preview-tab">
           <div className="panel-heading preview-heading">
-            <div className="heading-title"><span className="section-icon preview-icon">▧</span><div><h2>PDF preview</h2><span className="subheading">{compiledSource && compiledSource !== code ? 'Showing last successful compile' : 'Live document output'}</span></div></div>
+            <div className="heading-title"><div><h2>Compiled resume</h2><span className="subheading">{compiledSource && compiledSource !== code ? 'Showing the last successful compile' : 'PDF output'}</span></div></div>
             <div className="preview-actions">
-              {pdfUrl && <a className="preview-link" href={pdfUrl} target="_blank" rel="noreferrer">Open ↗</a>}
-              {pdfUrl && <a className="download-button" href={pdfUrl} download={`${fileName.replace(/\.tex$/i, '')}.pdf`} aria-label="Download compiled PDF">↓</a>}
+              {pdfUrl && <a className="preview-link" href={pdfUrl} target="_blank" rel="noreferrer">Open PDF</a>}
+              {pdfUrl && <a className="download-button" href={pdfUrl} download={`${fileName.replace(/\.tex$/i, '')}.pdf`} aria-label="Download compiled PDF">Download</a>}
             </div>
           </div>
-          <div className="preview-status"><span className={`status-indicator ${compileStatus}`} />{compileStatus === 'success' ? 'PDF is up to date' : compileStatus === 'error' ? 'Fix the errors and compile again' : compileStatus === 'compiling' || compileStatus === 'loading' ? 'Compiling in your browser' : 'Waiting for first compile'}</div>
+          <div className="preview-status"><span className={`status-indicator ${compileStatus}`} aria-hidden="true" />{compileStatus === 'success' ? 'PDF is up to date' : compileStatus === 'error' ? 'Review the compile errors' : compileStatus === 'compiling' || compileStatus === 'loading' ? 'Compiling in this browser' : 'Compile to create a PDF preview'}</div>
           <div className="pdf-stage">
-            {pdfData ? <Suspense fallback={<div className="pdf-viewer-message">Opening PDF viewer…</div>}><LazyPdfViewer data={pdfData} /></Suspense> : <div className="pdf-empty"><span className="pdf-page-icon">▤</span><b>Your PDF will appear here</b><small>Compile the LaTeX source to preview it.</small><button onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>Compile resume <span>Ctrl ↵</span></button></div>}
+            {pdfData ? <Suspense fallback={<div className="pdf-viewer-message"><div className="pdf-page-skeleton" aria-hidden="true" /><span>Preparing the document preview</span></div>}><LazyPdfViewer data={pdfData} /></Suspense> : <div className="pdf-empty"><div className="empty-page-outline" aria-hidden="true"><span /><span /><span /></div><h3>Your resume preview will appear here</h3><p>Compile the LaTeX source to review the document.</p><button onClick={() => void compileSource(code)} disabled={compileStatus === 'loading' || compileStatus === 'compiling'}>Compile resume</button></div>}
           </div>
-          <div className="preview-footer"><span>PDFLATEX / XELATEX</span><span>COMPILED LOCALLY</span></div>
+          <div className="preview-footer"><span>Compiled in this browser</span><span>{compileEngine === 'auto' ? 'Automatic engine' : compileEngine === 'xelatex' ? 'XeLaTeX' : 'pdfLaTeX'}</span></div>
         </section>
       </section>
       {skillModalOpen && <div className="skill-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSkillModalOpen(false); }}>
-        <section className="skill-modal" role="dialog" aria-modal="true" aria-labelledby="skill-modal-title">
+        <section ref={jobMatcherRef} className="skill-modal" role="dialog" aria-modal="true" aria-labelledby="skill-modal-title" aria-describedby="skill-modal-description" tabIndex={-1}>
           <header className="skill-modal-header">
-            <div><span className="eyebrow"><span className="eyebrow-line" /> JOB MATCHER</span><h2 id="skill-modal-title">Tailor your resume to a job</h2><p>Paste a JD to find matching technologies and add them to your LaTeX skills section.</p></div>
+            <div><p className="modal-kicker">Job description</p><h2 id="skill-modal-title">Tailor this resume to a job</h2><p id="skill-modal-description">Paste a job description, review the matched skills, then apply them to your LaTeX resume.</p></div>
             <button className="modal-close" onClick={() => setSkillModalOpen(false)} aria-label="Close job matcher">×</button>
           </header>
           <div className="jd-matcher modal-jd-matcher">
-            <label htmlFor="jd-text">JOB DESCRIPTION</label>
-            <textarea id="jd-text" value={jdText} onChange={(event) => { setJdText(event.target.value); setJdFeedback(''); }} placeholder="Paste the full job description here…" rows={4} />
+            <label htmlFor="jd-text">Job description</label>
+            <textarea ref={jobDescriptionRef} id="jd-text" value={jdText} onChange={(event) => { setJdText(event.target.value); setJdFeedback(''); }} placeholder="Paste the full job description here" rows={4} />
             <div className="jd-matcher-actions">
-              <span>{applicableJdSkills.length ? `${jdSkills.length} in library · ${newJdSkills.length} new ${newJdSkills.length === 1 ? 'technology' : 'technologies'} found` : 'Matching happens on this device'}</span>
-              <button onClick={applyJobDescription} disabled={!applicableJdSkills.length}>Apply skills to resume</button>
+              <span>{applicableJdSkills.length ? `${jdSkills.length} library matches, ${newJdSkills.length} new ${newJdSkills.length === 1 ? 'technology' : 'technologies'}` : 'Skills are matched on this device'}</span>
+              <button onClick={applyJobDescription} disabled={!applicableJdSkills.length}>Apply skills</button>
             </div>
-            {newJdSkills.length > 0 && <div className="new-tech-chips"><span>Will add to library:</span>{newJdSkills.map((skill) => <span className="new-tech-chip" key={skill.name}>{skill.name}</span>)}</div>}
+            {newJdSkills.length > 0 && <div className="new-tech-list"><span>New technologies to add to your library</span><ul>{newJdSkills.map((skill) => <li key={skill.name}>{skill.name}</li>)}</ul></div>}
             <form className="custom-skill-form" onSubmit={(event) => { event.preventDefault(); addCustomSkill(); }}>
-              <label htmlFor="custom-skill">Missing a technology?</label>
-              <div><input id="custom-skill" value={customSkillName} onChange={(event) => setCustomSkillName(event.target.value)} placeholder="Add a technology to your library" /><button type="submit" disabled={!customSkillName.trim()}>Add technology</button></div>
+              <label htmlFor="custom-skill">Add a technology missing from the library</label>
+              <div><input id="custom-skill" value={customSkillName} onChange={(event) => setCustomSkillName(event.target.value)} placeholder="Technology name" /><button type="submit" disabled={!customSkillName.trim()}>Add technology</button></div>
             </form>
             {jdFeedback && <p className="jd-feedback" role="status">{jdFeedback}</p>}
           </div>
           <div className="skill-library-modal">
-            <div className="library-modal-heading"><div><h3>Skill library</h3><span>Choose skills manually or review matches from the JD.</span></div><div className="library-totals"><span>{activeCount} in resume</span><span>{requiredCount} for JD</span></div></div>
-            <label className="search-box"><span className="search-icon">⌕</span><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search skills..." /><kbd>⌘ K</kbd></label>
-            <div className="list-head"><span>SKILL SET</span><span>IN RESUME</span><span>FOR JD</span></div>
+            <div className="library-modal-heading"><div><h3>Skill library</h3><span>Search the catalog or adjust skills one at a time.</span></div><div className="library-totals"><span>{activeCount} in resume</span><span>{requiredCount} required</span></div></div>
+            <label className="search-box"><span className="search-icon" aria-hidden="true">⌕</span><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search skills" /><kbd>Ctrl K</kbd></label>
+            <div className="list-head"><span>Skill</span><span>Resume</span><span>Required for job</span></div>
             <div className="skill-groups modal-skill-groups">
               {filteredGroups.length ? filteredGroups.map((group) => (
                 <section className="skill-group" key={group.id}>
-                  <h3><span className={`group-icon group-${group.id}`}>{group.icon}</span>{group.title}<span className="group-count">{group.skills.length.toString().padStart(2, '0')}</span></h3>
+                  <h3>{group.title}<span className="group-count">{group.skills.length}</span></h3>
                   {group.skills.map((skill) => {
                     const present = inResume(skill.name);
                     const needed = required.has(skill.name);
                     const matched = applicableJdSkills.some((item) => item.name === skill.name);
                     return <div className={`skill-row ${present ? 'is-present' : ''} ${needed ? 'is-required' : ''} ${matched ? 'is-jd-match' : ''}`} key={skill.name}>
-                      <button className="skill-name" onClick={() => toggleResume(skill)} title={present ? 'Remove from resume' : 'Add to resume'}><span className={`resume-check ${present ? 'checked' : ''}`}>{present ? '✓' : '+'}</span><span>{skill.name}</span>{matched && <small>JD</small>}</button>
-                      <button className={`status-cell ${present ? 'present-label' : ''}`} onClick={() => toggleResume(skill)} aria-label={`${present ? 'Remove' : 'Add'} ${skill.name} ${present ? 'from' : 'to'} resume`}>{present ? <span className="tiny-check">✓</span> : <span className="empty-dash">—</span>}</button>
-                      <button className={`jd-toggle ${needed ? 'selected' : ''}`} onClick={() => toggleRequired(skill.name)} aria-label={`${needed ? 'Unmark' : 'Mark'} ${skill.name} as needed for job`}><span /></button>
+                      <button className="skill-name" onClick={() => toggleResume(skill)} title={present ? 'Remove from resume' : 'Add to resume'}><span className={`resume-check ${present ? 'checked' : ''}`} aria-hidden="true">{present ? '✓' : '+'}</span><span>{skill.name}</span>{matched && <small>Matched</small>}</button>
+                      <button className={`status-cell ${present ? 'present-label' : ''}`} onClick={() => toggleResume(skill)} aria-label={`${present ? 'Remove' : 'Add'} ${skill.name} ${present ? 'from' : 'to'} resume`}>{present ? 'In resume' : 'Add'}</button>
+                      <button className={`jd-toggle ${needed ? 'selected' : ''}`} role="switch" aria-checked={needed} onClick={() => toggleRequired(skill.name)} aria-label={`${needed ? 'Remove' : 'Mark'} ${skill.name} ${needed ? 'from' : 'as'} job requirements`}><span /></button>
                     </div>;
                   })}
                 </section>
@@ -766,7 +824,7 @@ function App() {
           </div>
         </section>
       </div>}
-      <footer className="page-footer"><span>DOWND <i>·</i> BUILT FOR THE DETAILS</span><span>LATEX FIRST, ALWAYS <span className="footer-heart">♥</span></span></footer>
+      <footer className="page-footer"><span>downD · LaTeX resume workspace</span><span>Resume source stays in this browser. Terms and Privacy pages are not published yet.</span></footer>
     </main>
   );
 }

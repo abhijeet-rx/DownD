@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f1f3f0"/>
+  <rect x="56" y="50" width="1088" height="530" fill="#fafbf9" stroke="#c8d2cb" stroke-width="2"/>
+  <rect x="56" y="50" width="1088" height="68" fill="#fafbf9"/>
+  <path d="M56 118h1088" stroke="#c8d2cb" stroke-width="2"/>
+  <rect x="80" y="69" width="32" height="32" rx="3" fill="#175b43"/>
+  <text x="96" y="91" fill="#fafbf9" font-family="Arial,sans-serif" font-size="15" font-weight="700" text-anchor="middle">dD</text>
+  <text x="126" y="92" fill="#18241e" font-family="Arial,sans-serif" font-size="23" font-weight="700">downD</text>
+  <text x="80" y="194" fill="#18241e" font-family="Georgia,serif" font-size="42">Tailor your LaTeX resume</text>
+  <text x="80" y="246" fill="#18241e" font-family="Georgia,serif" font-size="42">to the job in front of you.</text>
+  <text x="80" y="286" fill="#4f5d53" font-family="Arial,sans-serif" font-size="19">Review matched skills, edit source, and compile a PDF in one workspace.</text>
+  <rect x="80" y="336" width="588" height="208" fill="#19231e"/>
+  <text x="102" y="370" fill="#b9d5c4" font-family="monospace" font-size="15">\section{Technical Skills}</text>
+  <text x="102" y="402" fill="#fafbf9" font-family="monospace" font-size="15">\textbf{Frontend:} React, TypeScript, CSS</text>
+  <text x="102" y="434" fill="#fafbf9" font-family="monospace" font-size="15">\textbf{Backend:} Node.js, PostgreSQL</text>
+  <text x="102" y="466" fill="#fafbf9" font-family="monospace" font-size="15">\textbf{Tools:} Git, Docker, CI/CD</text>
+  <rect x="701" y="336" width="363" height="208" fill="#e8ece8" stroke="#c8d2cb"/>
+  <rect x="790" y="354" width="185" height="172" fill="#fff" stroke="#b7c2ba"/>
+  <text x="882" y="377" fill="#18241e" font-family="Georgia,serif" font-size="11" text-anchor="middle">Your name</text>
+  <path d="M812 390h141M812 408h141M812 420h130M812 445h141M812 457h133M812 480h141M812 492h120" stroke="#4f5d53" stroke-width="2"/>
+  <path d="M812 435h141M812 470h141M812 505h141" stroke="#175b43" stroke-width="2"/>
+  <text x="80" y="564" fill="#4f5d53" font-family="Arial,sans-serif" font-size="14">A local workspace for job seekers working with LaTeX resumes.</text>
+</svg>

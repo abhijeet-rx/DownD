@@ -120,7 +120,7 @@ export default function PdfViewer({ data }: { data: Uint8Array }) {
       <span className="pdf-toolbar-divider" />
       <button className="pdf-tool-button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} aria-label="Previous page">‹</button>
       <input className="pdf-page-input" aria-label="Current page" type="number" min="1" max={pageCount || 1} value={currentPage} onChange={(event) => goToPage(Number(event.target.value))} />
-      <span className="pdf-page-total">/ {pageCount || '—'}</span>
+      <span className="pdf-page-total">/ {pageCount || '…'}</span>
       <button className="pdf-tool-button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pageCount} aria-label="Next page">›</button>
       <span className="pdf-toolbar-divider" />
       <button className="pdf-tool-button" onClick={() => setZoom((value) => Math.max(0.55, Math.round((value - 0.1) * 100) / 100))} aria-label="Zoom out" title="Zoom out">−</button>
@@ -142,7 +142,7 @@ export default function PdfViewer({ data }: { data: Uint8Array }) {
               <PdfPageCanvas document={document} pageNumber={page} width={pageWidth} />
             </div>)}
           </div>
-            : <div className="pdf-viewer-message">Loading PDF preview…</div>}
+            : <div className="pdf-viewer-message"><div className="pdf-page-skeleton" aria-hidden="true" /><span>Preparing the document preview</span></div>}
       </div>
     </div>
   </div>;
